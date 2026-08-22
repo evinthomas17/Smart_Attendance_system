@@ -1,0 +1,7 @@
+Database error fixed
+The backend was failing because PostgreSQL did not have the expected database, and the custom user model in the accounts app had no initial migration.
+
+What I changed
+Created the PostgreSQL database named attendance_system
+Generated and applied the initial migration for the custom user model in 0001_initial.py
+Applied Django’s full migration set successfully
