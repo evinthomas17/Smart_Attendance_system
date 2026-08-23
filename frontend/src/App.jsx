@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
+import StudentManage from "./pages/StudentManage";
 import StudentDashboard from "./pages/StudentDashboard";
 import FacultyDashboard from "./pages/FacultyDashboard";
 
@@ -25,6 +26,7 @@ function App() {
 
         <Route path="/login" element={<Login />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/students" element={<StudentManage />} />
         <Route path="/admin/:section" element={<AdminFeature />} />
 
         <Route
