@@ -1,6 +1,6 @@
 import "./App.css";
 
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -20,8 +20,12 @@ function App() {
 
         <Route
           path="/admin-dashboard"
-          element={<AdminDashboard />}
+          element={<Navigate to="/admin/dashboard" replace />}
         />
+
+        <Route path="/login" element={<Login />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/:section" element={<AdminFeature />} />
 
         <Route
           path="/student-dashboard"
@@ -37,6 +41,10 @@ function App() {
 
     </BrowserRouter>
   );
+}
+
+function AdminFeature() {
+  return <main className="admin-feature">This section is coming soon.</main>;
 }
 
 export default App;

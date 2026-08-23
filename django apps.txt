@@ -1,0 +1,211 @@
+For your Smart Attendance System, these 8 Django apps can be organized like this:
+
+#	Django App	Main Function	Simple Explanation
+1	accounts	Authentication & User Access	Handles login, logout, JWT, passwords, roles and permissions. It does not register students/faculty.
+2	adminpanel	Admin Operations	Provides the Admin Dashboard. Admin can register/manage students and faculty, manage system data, and view reports.
+3	students	Student Management	Stores and manages student profiles and student-specific information.
+4	faculty	Faculty Management	Stores and manages faculty profiles and faculty-specific information.
+5	academics	Academic Management	Handles departments, courses, subjects, semesters, classes and timetables.
+6	classrooms	Classroom Management	Manages classrooms/labs, their details, capacity, location and classroom assignments.
+7	devices	ESP32/BLE Management	Manages ESP32 devices, BLE identifiers, classroom-device mapping and device status.
+8	attendance	Attendance Management	Handles attendance sessions, verification, attendance records, status and reports.
+1. accounts — Authentication
+
+Purpose: Who can access the system?
+
+Handles:
+
+Login
+Logout
+JWT authentication
+Access/refresh tokens
+Password change/reset
+User roles
+Permissions
+
+Roles:
+
+ADMIN
+FACULTY
+STUDENT
+
+Important: Student and faculty registration is not handled here.
+
+2. adminpanel — Administration
+
+Purpose: What can the administrator do?
+
+The Admin Dashboard is handled here.
+
+Admin can:
+
+Register students
+Register faculty
+Manage students
+Manage faculty
+Manage departments/subjects
+Manage classrooms
+Manage ESP32 devices
+View attendance reports
+View dashboard statistics
+
+Think of it as the control center of the system.
+
+3. students — Student Management
+
+Purpose: Everything specifically related to students.
+
+Stores information such as:
+
+Student ID
+Name
+Email
+Register Number
+Department
+Course
+Semester
+Phone
+Profile information
+
+The adminpanel can create/manage students, but the actual Student model and student-related data belong here.
+
+4. faculty — Faculty Management
+
+Purpose: Everything specifically related to faculty.
+
+Stores:
+
+Faculty ID
+Name
+Email
+Department
+Designation
+Phone
+Profile information
+
+Again, adminpanel manages faculty, while the actual Faculty model/data belongs here.
+
+5. academics — Academic Management
+
+Purpose: Defines the academic structure of the college.
+
+For example:
+
+Department
+   ↓
+Course
+   ↓
+Semester
+   ↓
+Subject
+   ↓
+Timetable
+
+It can manage:
+
+Departments
+Courses
+Semesters
+Subjects
+Academic years
+Timetables
+Class/subject assignments
+6. classrooms — Classroom Management
+
+Purpose: Manages physical classrooms and labs.
+
+For example:
+
+Classroom
+├── Room number
+├── Building
+├── Floor
+├── Capacity
+├── Latitude
+├── Longitude
+└── Assigned ESP32 device
+
+This app is particularly important for your GPS verification and classroom-based attendance.
+
+7. devices — ESP32/BLE Management
+
+Purpose: Manages the hardware used for classroom verification.
+
+Handles:
+
+ESP32 registration
+ESP32 unique ID
+BLE information
+Device status
+Classroom ↔ ESP32 mapping
+Expected device for attendance sessions
+
+Example:
+
+Classroom A101
+      ↓
+ESP32-001
+      ↓
+BLE verification
+8. attendance — Attendance Management
+
+Purpose: The core attendance processing system.
+
+Handles:
+
+Creating attendance sessions
+Starting/ending sessions
+Student attendance
+GPS verification
+BLE/ESP32 verification
+PIN verification
+QR verification
+Face verification, if enabled
+Time validation
+Present/Late/Absent status
+Attendance history
+Attendance reports
+
+A typical flow is:
+
+Faculty
+   ↓
+Create Attendance Session
+   ↓
+Student attempts attendance
+   ↓
+Verify:
+   ├── Login
+   ├── Time
+   ├── GPS
+   ├── ESP32/BLE
+   ├── PIN/QR
+   └── Face (optional)
+   ↓
+Attendance Validation
+   ↓
+Present / Late / Rejected
+   ↓
+Attendance Record
+Overall system
+                    SMART ATTENDANCE SYSTEM
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+    accounts              adminpanel            attendance
+ Authentication          Admin Control         Attendance
+        │                     │                     │
+        │          ┌──────────┼──────────┐          │
+        │          │          │          │          │
+        ▼          ▼          ▼          ▼          ▼
+     students   faculty   academics  classrooms   devices
+Easy way to remember
+
+accounts → Who can log in?
+adminpanel → What can the admin manage?
+students → Who are the students?
+faculty → Who are the faculty?
+academics → What is being taught?
+classrooms → Where is it taught?
+devices → Which ESP32 verifies the classroom?
+attendance → Who attended and how was it verified?

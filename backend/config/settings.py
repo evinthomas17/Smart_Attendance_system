@@ -43,6 +43,13 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'accounts',
+    'adminpanel',
+    'students',
+    'faculty',
+    'academics',
+    'classrooms',
+    'devices',
+    'attendance',
 ]
 
 MIDDLEWARE = [

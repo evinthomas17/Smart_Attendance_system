@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../services/api";
 import "./Login.css";
 
 function Login() {
@@ -17,7 +17,7 @@ function Login() {
     setErrorMessage("");
     try {
 
-      const response = await axios.post(
+      const response = await api.post(
         "/api/accounts/login/",
         {
           email,
@@ -35,7 +35,7 @@ function Login() {
 
       // Navigate based on Role
       if (response.data.user.role === "ADMIN") {
-        navigate("/admin-dashboard");
+        navigate("/admin/dashboard");
       }
       else if (response.data.user.role === "STUDENT") {
         navigate("/student-dashboard");
