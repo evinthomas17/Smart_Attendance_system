@@ -135,9 +135,16 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Media files (User uploads)
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 CORS_ALLOWED_ORIGINS =  [
                           "http://localhost:5173",
                         ]
+
+# Face Recognition Model Directory
+FACE_MODEL_DIR = BASE_DIR / 'models' / 'face'
 
 AUTH_USER_MODEL = 'accounts.User'
 

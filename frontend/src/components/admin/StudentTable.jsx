@@ -1,4 +1,4 @@
-function StudentTable({ students, loading, onEdit, onDelete }) {
+function StudentTable({ students, loading, onDelete, onEdit }) {
   if (loading) return <p className="student-message">Loading students...</p>;
   if (!students.length) return <p className="student-message">No students registered for this class.</p>;
 
@@ -26,10 +26,18 @@ function StudentTable({ students, loading, onEdit, onDelete }) {
               <td>{student.class_code}</td>
               <td>{student.face_data_available ? "Available" : "Not Available"}</td>
               <td className="action-buttons">
-                <button type="button" className="edit-button" onClick={() => onEdit(student.id)}>
+                <button
+                  type="button"
+                  className="edit-button"
+                  onClick={() => onEdit(student)}
+                >
                   Edit
                 </button>
-                <button type="button" className="delete-button" onClick={() => onDelete(student)}>
+                <button
+                  type="button"
+                  className="delete-button"
+                  onClick={() => onDelete(student)}
+                >
                   Delete
                 </button>
               </td>

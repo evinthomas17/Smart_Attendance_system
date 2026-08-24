@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from adminpanel.permissions import IsAdminRole
 
@@ -11,6 +12,7 @@ from .models import Student
 from .serializers import (
     StudentFaceDataSerializer,
     StudentRegistrationSerializer,
+    StudentRegistrationWithFaceSerializer,
     StudentSerializer,
     StudentUpdateSerializer,
 )
@@ -37,6 +39,8 @@ class StudentListCreateAPIView(ListCreateAPIView):
 
     def get_serializer_class(self):
         if self.request.method == "POST":
+            if self.request.content_type and 'multipart' in self.request.content_type:
+                return StudentRegistrationWithFaceSerializer
             return StudentRegistrationSerializer
         return StudentSerializer
 
@@ -52,11 +56,19 @@ class StudentDetailAPIView(RetrieveUpdateAPIView):
     queryset = Student.objects.select_related(
         "user", "class_group__course__department", "class_group__semester"
     )
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_serializer_class(self):
         if self.request.method in ("PUT", "PATCH"):
             return StudentUpdateSerializer
         return StudentSerializer
+
+    def delete(self, request, *args, **kwargs):
+        student = self.get_object()
+        user = student.user
+        student.delete()
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class StudentSearchAPIView(APIView):
@@ -82,3 +94,21 @@ class StudentFaceDataListAPIView(APIView):
     def get(self, request, pk):
         student = get_object_or_404(Student, pk=pk)
         return Response(StudentFaceDataSerializer(student.face_data.all(), many=True).data)
+
+
+class StudentRegistrationWithFaceAPIView(APIView):
+    """
+    Register a new student with face images (Front, Left, Right).
+    Uses multipart/form-data for file uploads.
+    """
+    permission_classes = [IsAdminRole]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        serializer = StudentRegistrationWithFaceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        student = serializer.save()
+        return Response(
+            StudentSerializer(student).data,
+            status=status.HTTP_201_CREATED
+        )

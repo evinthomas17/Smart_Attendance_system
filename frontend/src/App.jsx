@@ -2,11 +2,13 @@ import "./App.css";
 
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
-import Login from "./pages/Login";
-import AdminDashboard from "./pages/AdminDashboard";
-import StudentManage from "./pages/StudentManage";
-import StudentDashboard from "./pages/StudentDashboard";
-import FacultyDashboard from "./pages/FacultyDashboard";
+import Login from "./pages/login/Login";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import StudentManage from "./pages/admin/StudentManage";
+import StudentRegistration from "./pages/admin/StudentRegistration";
+import StudentUpdate from "./pages/admin/StudentUpdate";
+import StudentDashboard from "./pages/student/StudentDashboard";
+import FacultyDashboard from "./pages/faculty/FacultyDashboard";
 
 function App() {
   return (
@@ -27,6 +29,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/students" element={<StudentManage />} />
+        <Route path="/admin/students/register" element={<StudentRegistration />} />
+        <Route path="/admin/students/edit" element={<StudentUpdate />} />
         <Route path="/admin/:section" element={<AdminFeature />} />
 
         <Route
