@@ -67,7 +67,7 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
     """Admin-only input for creating a Student and its authentication account."""
 
     email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, min_length=8)
+    password = serializers.CharField(write_only=True, min_length=6)
 
     class Meta:
         model = Student
@@ -105,7 +105,7 @@ class StudentRegistrationWithFaceSerializer(serializers.ModelSerializer):
     """
     
     email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, min_length=8)
+    password = serializers.CharField(write_only=True, min_length=6)
     confirm_password = serializers.CharField(write_only=True)
     
     front_face = serializers.ImageField(write_only=True, required=True)
@@ -222,7 +222,7 @@ class StudentUpdateSerializer(serializers.ModelSerializer):
     """Editable student fields; the linked user's role and password stay protected."""
 
     email = serializers.EmailField(source="user.email", required=False)
-    password = serializers.CharField(write_only=True, min_length=8, required=False)
+    password = serializers.CharField(write_only=True, min_length=6, required=False)
     confirm_password = serializers.CharField(write_only=True, required=False)
     
     front_face = serializers.ImageField(write_only=True, required=False)

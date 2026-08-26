@@ -16,11 +16,7 @@ function StudentUpdate() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(true);
-
+  // Initialize academicInfo FIRST - before any functions/hooks that depend on it
   const academicInfoFromState = location.state;
 
   const academicInfo = academicInfoFromState ? {
@@ -43,42 +39,24 @@ function StudentUpdate() {
     studentData: null,
   };
 
-  const [formData, setFormData] = useState({
-    student_id: "",
-    full_name: "",
-    email: "",
-    phone: "",
-    date_of_birth: "",
-    gender: "",
-    password: "",
-    confirm_password: "",
-  });
+  // Initialize error state based on academic info
+  const getInitialError = () => {
+    if (!academicInfo.studentData && !academicInfo.studentId) {
+      return "No student selected for editing.";
+    }
+    return "";
+  };
 
-  const [faceImages, setFaceImages] = useState({
-    front_face: null,
-    left_face: null,
-    right_face: null,
-  });
+  const [error, setError] = useState(getInitialError);
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(() => !academicInfo.studentData && !!academicInfo.studentId);
 
-  const [facePreviews, setFacePreviews] = useState({
-    front_face: null,
-    left_face: null,
-    right_face: null,
-  });
-
-  const [existingFaceImages, setExistingFaceImages] = useState({
-    front_face: null,
-    left_face: null,
-    right_face: null,
-  });
-
-  const [fieldErrors, setFieldErrors] = useState({});
-  const [faceErrors, setFaceErrors] = useState({});
-
-  useEffect(() => {
+  // Initialize form data from studentData if available
+  const getInitialFormData = () => {
     if (academicInfo.studentData) {
       const student = academicInfo.studentData;
-      setFormData({
+      return {
         student_id: student.student_id || "",
         full_name: student.full_name || "",
         email: student.email || "",
@@ -87,23 +65,57 @@ function StudentUpdate() {
         gender: "",
         password: "",
         confirm_password: "",
-      });
+      };
+    }
+    return {
+      student_id: "",
+      full_name: "",
+      email: "",
+      phone: "",
+      date_of_birth: "",
+      gender: "",
+      password: "",
+      confirm_password: "",
+    };
+  };
 
-      if (student.face_data && Array.isArray(student.face_data)) {
-        const existing = { front_face: null, left_face: null, right_face: null };
-        student.face_data.forEach(face => {
-          if (face.face_angle === "FRONT") existing.front_face = face.face_image;
-          else if (face.face_angle === "LEFT") existing.left_face = face.face_image;
-          else if (face.face_angle === "RIGHT") existing.right_face = face.face_image;
-        });
-        setExistingFaceImages(existing);
-        setFacePreviews(existing);
-      }
-    } else if (academicInfo.studentId) {
+  const getInitialFaceData = () => {
+    if (academicInfo.studentData?.face_data && Array.isArray(academicInfo.studentData.face_data)) {
+      const existing = { front_face: null, left_face: null, right_face: null };
+      academicInfo.studentData.face_data.forEach(face => {
+        if (face.face_angle === "FRONT") existing.front_face = face.face_image;
+        else if (face.face_angle === "LEFT") existing.left_face = face.face_image;
+        else if (face.face_angle === "RIGHT") existing.right_face = face.face_image;
+      });
+      return existing;
+    }
+    return { front_face: null, left_face: null, right_face: null };
+  };
+
+  const [formData, setFormData] = useState(getInitialFormData);
+  const [originalFormData, setOriginalFormData] = useState(getInitialFormData);
+
+  const [faceImages, setFaceImages] = useState({
+    front_face: null,
+    left_face: null,
+    right_face: null,
+  });
+
+  const initialFacePreviews = getInitialFaceData();
+  const [facePreviews, setFacePreviews] = useState(initialFacePreviews);
+  const [existingFaceImages, setExistingFaceImages] = useState(initialFacePreviews);
+  const [originalFaceImages, setOriginalFaceImages] = useState(initialFacePreviews);
+
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [faceErrors, setFaceErrors] = useState({});
+
+// Only fetch from API if we have studentId but no studentData
+  useEffect(() => {
+    if (!academicInfo.studentData && academicInfo.studentId) {
       studentService.getStudent(academicInfo.studentId)
         .then(response => {
           const student = response.data;
-          setFormData({
+          const formDataValues = {
             student_id: student.student_id || "",
             full_name: student.full_name || "",
             email: student.email || "",
@@ -112,7 +124,9 @@ function StudentUpdate() {
             gender: "",
             password: "",
             confirm_password: "",
-          });
+          };
+          setFormData(formDataValues);
+          setOriginalFormData(formDataValues);
 
           if (student.face_data && Array.isArray(student.face_data)) {
             const existing = { front_face: null, left_face: null, right_face: null };
@@ -122,16 +136,19 @@ function StudentUpdate() {
               else if (face.face_angle === "RIGHT") existing.right_face = face.face_image;
             });
             setExistingFaceImages(existing);
+            setOriginalFaceImages(existing);
             setFacePreviews(existing);
+          } else {
+            setOriginalFaceImages({ front_face: null, left_face: null, right_face: null });
           }
         })
-        .catch(err => {
+        .catch(() => {
           setError("Failed to load student details.");
+        })
+        .finally(() => {
+          setIsLoadingData(false);
         });
-    } else {
-      setError("No student selected for editing.");
     }
-    setInitialLoad(false);
   }, [academicInfo.studentId, academicInfo.studentData]);
 
   const validateField = useCallback((name, value) => {
@@ -306,7 +323,7 @@ function StudentUpdate() {
       const studentId = academicInfo.studentId || academicInfo.studentData?.id;
       await studentService.updateStudent(studentId, data);
 
-      setSuccess("Student updated successfully!");
+      setSuccess("Student details updated successfully.");
 
       setTimeout(() => {
         navigate("/admin/students", {
@@ -367,7 +384,17 @@ function StudentUpdate() {
     }
   };
 
-  const handleCancel = () => {
+  const handleClear = () => {
+    if (originalFormData) {
+      setFormData(originalFormData);
+    }
+    setFaceImages({ front_face: null, left_face: null, right_face: null });
+    setFacePreviews(originalFaceImages);
+    setFieldErrors({});
+    setFaceErrors({});
+  };
+
+  const handleGoBack = () => {
     navigate("/admin/students", {
       state: {
         department: academicInfo.department,
@@ -379,10 +406,6 @@ function StudentUpdate() {
       },
       replace: true,
     });
-  };
-
-  const handleGoBack = () => {
-    handleCancel();
   };
 
   const renderAcademicInfo = () => {
@@ -535,7 +558,7 @@ function StudentUpdate() {
     </section>
   );
 
-  if (initialLoad) {
+  if (isLoadingData) {
     return (
       <div className="admin-dashboard">
         <div className="circle-top" aria-hidden="true" />
@@ -872,8 +895,8 @@ function StudentUpdate() {
             {renderFaceUploadSection()}
 
             <div className="form-actions">
-              <button type="button" className="btn btn-secondary" onClick={handleCancel} disabled={loading}>
-                Cancel
+              <button type="button" className="btn btn-secondary" onClick={handleClear} disabled={loading}>
+                Clear
               </button>
               <button type="submit" className="btn btn-primary" disabled={loading}>
                 {loading ? "Updating..." : "Update Student"}

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import * as studentService from "../../services/studentService";
 import "./StudentRegistration.css";
@@ -64,6 +64,17 @@ function StudentRegistration() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [faceErrors, setFaceErrors] = useState({});
 
+  const initialFormData = useMemo(() => ({
+    student_id: "",
+    full_name: "",
+    email: "",
+    phone: "",
+    date_of_birth: "",
+    gender: "",
+    password: "",
+    confirm_password: "",
+  }), []);
+
   const validateField = useCallback((name, value) => {
     const newErrors = { ...fieldErrors };
 
@@ -95,8 +106,8 @@ function StudentRegistration() {
       case "password":
         if (!value) {
           newErrors.password = "Password is required";
-        } else if (value.length < 8) {
-          newErrors.password = "Password must be at least 8 characters";
+        } else if (value.length < 6) {
+          newErrors.password = "Password must be at least 6 characters";
         }
         break;
       case "confirm_password":
@@ -187,8 +198,8 @@ function StudentRegistration() {
     if (!formData.password) {
       newErrors.password = "Password is required";
       isValid = false;
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters";
+    } else if (formData.password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters";
       isValid = false;
     }
     if (formData.password !== formData.confirm_password) {
@@ -323,7 +334,15 @@ function StudentRegistration() {
     }
   };
 
-  const handleCancel = () => {
+  const handleClear = () => {
+    setFormData(initialFormData);
+    setFaceImages({ front_face: null, left_face: null, right_face: null });
+    setFacePreviews({ front_face: null, left_face: null, right_face: null });
+    setFieldErrors({});
+    setFaceErrors({});
+  };
+
+  const handleGoBack = () => {
     navigate("/admin/students", {
       state: {
         department: academicInfo.department,
@@ -335,10 +354,6 @@ function StudentRegistration() {
       },
       replace: true,
     });
-  };
-
-  const handleGoBack = () => {
-    handleCancel();
   };
 
   const renderAcademicInfo = () => {
@@ -699,7 +714,7 @@ function StudentRegistration() {
                       id="password"
                       name="password"
                       type="password"
-                      placeholder="Enter password (min 8 characters)"
+                      placeholder="Enter password (min 6 characters)"
                       value={formData.password}
                       onChange={handleInputChange}
                       className={`filter-input ${fieldErrors.password ? "error" : ""}`}
@@ -727,10 +742,10 @@ function StudentRegistration() {
 
               {renderFaceUploadSection()}
 
-              <div className="form-actions">
-                
-                <button type="button" className="btn btn-secondary" onClick={handleCancel} disabled={loading}>
-                  Cancel
+<div className="form-actions">
+                 
+                <button type="button" className="btn btn-secondary" onClick={handleClear} disabled={loading}>
+                  Clear
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={loading}>
                   {loading ? "Registering..." : "Register Student"}

@@ -7,6 +7,9 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import StudentManage from "./pages/admin/StudentManage";
 import StudentRegistration from "./pages/admin/StudentRegistration";
 import StudentUpdate from "./pages/admin/StudentUpdate";
+import FacultyManage from "./pages/admin/FacultyManage";
+import FacultyRegistration from "./pages/admin/FacultyRegistration";
+import FacultyUpdate from "./pages/admin/FacultyUpdate";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import FacultyDashboard from "./pages/faculty/FacultyDashboard";
 
@@ -31,6 +34,9 @@ function App() {
         <Route path="/admin/students" element={<StudentManage />} />
         <Route path="/admin/students/register" element={<StudentRegistration />} />
         <Route path="/admin/students/edit" element={<StudentUpdate />} />
+        <Route path="/admin/faculty" element={<FacultyManage />} />
+        <Route path="/admin/faculty/register" element={<FacultyRegistration />} />
+        <Route path="/admin/faculty/edit" element={<FacultyUpdate />} />
         <Route path="/admin/:section" element={<AdminFeature />} />
 
         <Route
