@@ -10,6 +10,10 @@ import StudentUpdate from "./pages/admin/StudentUpdate";
 import FacultyManage from "./pages/admin/FacultyManage";
 import FacultyRegistration from "./pages/admin/FacultyRegistration";
 import FacultyUpdate from "./pages/admin/FacultyUpdate";
+import SubjectManage from "./pages/admin/SubjectManage";
+import SubjectAdd from "./pages/admin/SubjectAdd";
+import SubjectView from "./pages/admin/SubjectView";
+import SubjectUpdate from "./pages/admin/SubjectUpdate";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import FacultyDashboard from "./pages/faculty/FacultyDashboard";
 
@@ -37,6 +41,10 @@ function App() {
         <Route path="/admin/faculty" element={<FacultyManage />} />
         <Route path="/admin/faculty/register" element={<FacultyRegistration />} />
         <Route path="/admin/faculty/edit" element={<FacultyUpdate />} />
+        <Route path="/admin/subjects" element={<SubjectManage />} />
+        <Route path="/admin/subjects/add" element={<SubjectAdd />} />
+        <Route path="/admin/subjects/view" element={<SubjectView />} />
+        <Route path="/admin/subjects/edit" element={<SubjectUpdate />} />
         <Route path="/admin/:section" element={<AdminFeature />} />
 
         <Route

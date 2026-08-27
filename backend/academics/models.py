@@ -106,3 +106,43 @@ class AcademicClass(models.Model):
 
     def __str__(self):
         return self.class_code
+
+
+class Subject(models.Model):
+    name = models.CharField(max_length=200)
+    code = models.CharField(max_length=30, unique=True)
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.PROTECT,
+        related_name="subjects",
+    )
+    semester = models.ForeignKey(
+        Semester,
+        on_delete=models.PROTECT,
+        related_name="subjects",
+    )
+    credits = models.PositiveSmallIntegerField(default=3)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["course", "semester", "code"],
+                name="unique_course_semester_subject_code",
+            ),
+        ]
+        ordering = ["course__name", "semester__semester_number", "name"]
+        verbose_name = "Subject"
+        verbose_name_plural = "Subjects"
+
+    def clean(self):
+        if self.semester_id and self.course_id and self.semester.course_id != self.course_id:
+            from django.core.exceptions import ValidationError
+            raise ValidationError(
+                {"semester": "The selected semester must belong to the selected course."}
+            )
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"

@@ -1,0 +1,388 @@
+.alert-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px;
+  background: #fff8e1;
+  border: 1px solid #ffd54f;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.alert-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.alert-content h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.alert-content p {
+  margin: 0 0 16px;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.academic-info-card {
+  margin-bottom: 20px;
+}
+
+.section-description {
+  margin: 0 0 20px;
+  color: #777;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.subject-count-card,
+.semester-selection-card,
+.subject-fields-card {
+  margin-bottom: 20px;
+}
+
+.subject-fields-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.subject-field-row {
+  width: 100%;
+}
+
+.subject-name-group {
+  width: 100%;
+}
+
+.subject-name-group .filter-input {
+  width: 100%;
+}
+
+.subject-empty {
+  text-align: center;
+  color: #999;
+  padding: 40px 20px;
+  font-size: 14px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 0 0;
+  margin-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s, background 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #2c22df, #ff6b1a);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: #f0eeff;
+  color: #4136e5;
+  border: 1px solid #e0deff;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #e0deff;
+}
+
+.btn-outline {
+  background: transparent;
+  color: #4136e5;
+  border: 1px solid #c5c0f0;
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: #f7f5ff;
+}
+
+.btn-danger {
+  background: #fff5f5;
+  color: #e03e3e;
+  border: 1px solid #feb2b2;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #fff0f0;
+  border-color: #fc8181;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #444;
+}
+
+.required {
+  color: #e03e3e;
+  margin-left: 2px;
+}
+
+.filter-input {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  background: #fff;
+  color: #222;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filter-input:focus {
+  outline: none;
+  border-color: #4136e5;
+  box-shadow: 0 0 0 3px rgba(65, 54, 229, 0.15);
+}
+
+.filter-input:disabled {
+  background: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.filter-input.error {
+  border-color: #e03e3e;
+}
+
+.filter-input.error:focus {
+  box-shadow: 0 0 0 3px rgba(224, 62, 62, 0.15);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 12px;
+  color: #e03e3e;
+}
+
+.field-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #777;
+}
+
+.course-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fafafa;
+  min-height: 50px;
+}
+
+.course-checkbox-group.error {
+  border-color: #e03e3e;
+}
+
+.course-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #e0deff;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  font-size: 13px;
+  color: #333;
+}
+
+.course-checkbox-label:hover {
+  background: #f7f5ff;
+  border-color: #c5c0f0;
+}
+
+.course-checkbox-input {
+  width: 16px;
+  height: 16px;
+  accent-color: #4136e5;
+}
+
+.course-checkbox-text {
+  font-size: 13px;
+}
+
+.course-loading,
+.course-empty {
+  margin: 0;
+  padding: 12px;
+  color: #777;
+  font-size: 13px;
+}
+
+.face-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.face-upload-card {
+  padding: 16px;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.face-upload-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.face-upload-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #777;
+}
+
+.face-preview-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4/3;
+  border: 2px dashed #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.face-preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.face-preview-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  gap: 8px;
+  color: #999;
+  font-size: 13px;
+}
+
+.preview-icon {
+  font-size: 32px;
+}
+
+.face-upload-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.choose-image-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.clear-image-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.face-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #e03e3e;
+}
+
+.password-card,
+.student-info-card,
+.faculty-info-card {
+  margin-bottom: 20px;
+}
+
+.error-message {
+  color: #e03e3e;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.success-message {
+  color: #2f855a;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .course-checkbox-group {
+    flex-direction: column;
+  }
+}

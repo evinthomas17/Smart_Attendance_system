@@ -399,6 +399,10 @@
   font-weight: 600; 
 }
 .admin-dashboard .quick-action { 
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 12px; 
   margin-bottom: 12px; 
   padding: 15px; 
@@ -408,6 +412,7 @@
   cursor: pointer; 
   text-decoration: none; 
   transition: .2s; 
+  text-align: center;
 }
 .admin-dashboard .quick-action:hover { 
   border-color: #aaa2ff; 
@@ -629,29 +634,6 @@
   background: #a5a0e8;
   cursor: not-allowed;
   transform: none;
-}
-
-.selected-academic {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding: 12px;
-  background: #f7f5ff;
-  border-radius: 8px;
-  border: 1px solid #e8e5ff;
-}
-
-.academic-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #444;
 }
 
 .student-message {
