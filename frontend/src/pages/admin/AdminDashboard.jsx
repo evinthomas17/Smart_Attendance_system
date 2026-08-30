@@ -23,11 +23,26 @@ const statDefinitions = [
 ];
 
 const quickActions = [
-  { label: "Add Student", path: "/admin/students" },
-  { label: "Add Faculty", path: "/admin/faculty" },
-  { label: "Add Subject", path: "/admin/subjects" },
-  { label: "Add Device", path: "/admin/devices" },
-  { label: "Add Timetable", path: "/admin/timetable" },
+  { 
+    label: "Add Student", 
+    path: "/admin/students" 
+  },
+  { 
+    label: "Add Faculty", 
+    path: "/admin/faculty" 
+  },
+  { 
+    label: "Add Subject", 
+    path: "/admin/subjects" 
+  },
+  { 
+    label: "Add Device", 
+    path: "/admin/devices" 
+  },
+  { 
+    label: "Add Timetable", 
+    path: "/admin/timetable" 
+  },
 ];
 
 function AdminDashboard() {
@@ -146,15 +161,16 @@ function AdminDashboard() {
             <h2 id="quick-actions-title" className="card-title">
               Quick Actions
             </h2>
-
-            {quickActions.map((action) => (
-              <Link key={action.path} to={action.path} className="quick-action">
-                <span className="quick-icon" aria-hidden="true">
-                  +
-                </span>
-                <span>{action.label}</span>
-              </Link>
-            ))}
+            <div className="quick-actions-list">
+              {quickActions.map((action) => (
+                <Link key={action.path} to={action.path} className="quick-action-item">
+                  <div className="quick-action-icon">
+                    <span aria-hidden="true">+</span>
+                  </div>
+                  <span className="quick-action-label">{action.label}</span>
+                </Link>
+              ))}
+            </div>
           </section>
         </main>
       </div>

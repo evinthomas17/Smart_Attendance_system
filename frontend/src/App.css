@@ -398,6 +398,60 @@
   font-size: 18px; 
   font-weight: 600; 
 }
+.admin-dashboard .quick-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.admin-dashboard .quick-action-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  color: #222;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.2s, border-color 0.2s;
+  background: #fff;
+}
+.admin-dashboard .quick-action-item:hover {
+  background-color: #faf8ff;
+  border-color: #5146e5;
+}
+.admin-dashboard .quick-action-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 8px;
+  background: #f0eeff;
+  color: #5146e5;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+.admin-dashboard .quick-action-label {
+  font-size: 15px;
+  font-weight: 500;
+  color: #222;
+}
+@media (max-width: 600px) {
+  .admin-dashboard .quick-action-item {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+  .admin-dashboard .quick-action-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+  }
+  .admin-dashboard .quick-action-label {
+    font-size: 14px;
+  }
+}
 .admin-dashboard .quick-action { 
   display: flex;
   flex-direction: column;
@@ -417,7 +471,8 @@
 .admin-dashboard .quick-action:hover { 
   border-color: #aaa2ff; 
   background: #f7f5ff; 
-}.admin-dashboard .quick-icon { 
+}
+.admin-dashboard .quick-icon { 
   display: grid; 
   width: 40px; 
   height: 40px; 

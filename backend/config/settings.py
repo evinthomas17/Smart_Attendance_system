@@ -95,6 +95,7 @@ DATABASES = {
         "PASSWORD": "viswa123",
         "HOST": "localhost",
         "PORT": "5432",
+        "CONN_MAX_AGE": 0,
     }
 }
 
@@ -140,8 +141,13 @@ MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 CORS_ALLOWED_ORIGINS =  [
-                          "http://localhost:5173",
-                        ]
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+]
+
+CORS_ALLOW_CREDENTIALS = True
 
 # Face Recognition Model Directory
 FACE_MODEL_DIR = BASE_DIR / 'models' / 'face'

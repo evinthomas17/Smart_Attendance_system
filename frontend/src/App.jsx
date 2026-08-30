@@ -1,6 +1,10 @@
 import "./App.css";
 
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { useState, useEffect } from "react";
+import axios from "axios";
+import api from "./services/api";
+import { useNavigate } from "react-router-dom";
 
 import Login from "./pages/login/Login";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -14,8 +18,230 @@ import SubjectManage from "./pages/admin/SubjectManage";
 import SubjectAdd from "./pages/admin/SubjectAdd";
 import SubjectView from "./pages/admin/SubjectView";
 import SubjectUpdate from "./pages/admin/SubjectUpdate";
+import DeviceManage from "./pages/admin/DeviceManage";
+import DeviceAdd from "./pages/admin/DeviceAdd";
+import DeviceView from "./pages/admin/DeviceView";
+import DeviceEdit from "./pages/admin/DeviceEdit";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import FacultyDashboard from "./pages/faculty/FacultyDashboard";
+
+// Protected route component for admin routes
+function AdminProtectedRoute({ children }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const accessToken = localStorage.getItem("access");
+      const role = localStorage.getItem("role");
+
+      if (!accessToken || role !== "ADMIN") {
+        setIsAuthenticated(false);
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      // Verify token with backend using existing dashboard endpoint
+      try {
+        await api.get("/adminpanel/dashboard/");
+        setIsAuthenticated(true);
+      } catch {
+
+    // Try to refresh token
+        const refreshToken = localStorage.getItem("refresh");
+        if (refreshToken) {
+          try {
+            const response = await axios.post("/api/accounts/token/refresh/", {
+              refresh: refreshToken,
+            });
+            localStorage.setItem("access", response.data.access);
+            setIsAuthenticated(true);
+          } catch {
+            localStorage.removeItem("access");
+            localStorage.removeItem("refresh");
+            localStorage.removeItem("email");
+            localStorage.removeItem("role");
+            navigate("/login", { replace: true });
+          }
+        } else {
+          localStorage.removeItem("access");
+          localStorage.removeItem("refresh");
+          localStorage.removeItem("email");
+          localStorage.removeItem("role");
+          navigate("/login", { replace: true });
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="admin-dashboard">
+        <div className="circle-top" aria-hidden="true" />
+        <div className="circle-bottom" aria-hidden="true" />
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "24px", marginBottom: "16px" }}>🔄</div>
+            <p>Verifying authentication...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
+// Protected route for student dashboard
+function StudentProtectedRoute({ children }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const accessToken = localStorage.getItem("access");
+      const role = localStorage.getItem("role");
+
+      if (!accessToken || role !== "STUDENT") {
+        setIsAuthenticated(false);
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      try {
+        await api.get("/adminpanel/dashboard/");
+        setIsAuthenticated(true);
+      } catch {
+
+    // Try to refresh token
+        const refreshToken = localStorage.getItem("refresh");
+        if (refreshToken) {
+          try {
+            const response = await axios.post("/api/accounts/token/refresh/", {
+              refresh: refreshToken,
+            });
+            localStorage.setItem("access", response.data.access);
+            setIsAuthenticated(true);
+          } catch {
+            localStorage.removeItem("access");
+            localStorage.removeItem("refresh");
+            localStorage.removeItem("email");
+            localStorage.removeItem("role");
+            navigate("/login", { replace: true });
+          }
+        } else {
+          localStorage.removeItem("access");
+          localStorage.removeItem("refresh");
+          localStorage.removeItem("email");
+          localStorage.removeItem("role");
+          navigate("/login", { replace: true });
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
+
+  if (isLoading) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: "24px", marginBottom: "16px" }}>🔄</div>
+          <p>Verifying authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
+// Protected route for faculty dashboard
+function FacultyProtectedRoute({ children }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const accessToken = localStorage.getItem("access");
+      const role = localStorage.getItem("role");
+
+      if (!accessToken || role !== "FACULTY") {
+        setIsAuthenticated(false);
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      try {
+        await api.get("/adminpanel/dashboard/");
+        setIsAuthenticated(true);
+      } catch {
+
+    // Try to refresh token
+        const refreshToken = localStorage.getItem("refresh");
+        if (refreshToken) {
+          try {
+            const response = await axios.post("/api/accounts/token/refresh/", {
+              refresh: refreshToken,
+            });
+            localStorage.setItem("access", response.data.access);
+            setIsAuthenticated(true);
+          } catch {
+            localStorage.removeItem("access");
+            localStorage.removeItem("refresh");
+            localStorage.removeItem("email");
+            localStorage.removeItem("role");
+            navigate("/login", { replace: true });
+          }
+        } else {
+          localStorage.removeItem("access");
+          localStorage.removeItem("refresh");
+          localStorage.removeItem("email");
+          localStorage.removeItem("role");
+          navigate("/login", { replace: true });
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
+
+  if (isLoading) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: "24px", marginBottom: "16px" }}>🔄</div>
+          <p>Verifying authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
 
 function App() {
   return (
@@ -34,27 +260,156 @@ function App() {
         />
 
         <Route path="/login" element={<Login />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/students" element={<StudentManage />} />
-        <Route path="/admin/students/register" element={<StudentRegistration />} />
-        <Route path="/admin/students/edit" element={<StudentUpdate />} />
-        <Route path="/admin/faculty" element={<FacultyManage />} />
-        <Route path="/admin/faculty/register" element={<FacultyRegistration />} />
-        <Route path="/admin/faculty/edit" element={<FacultyUpdate />} />
-        <Route path="/admin/subjects" element={<SubjectManage />} />
-        <Route path="/admin/subjects/add" element={<SubjectAdd />} />
-        <Route path="/admin/subjects/view" element={<SubjectView />} />
-        <Route path="/admin/subjects/edit" element={<SubjectUpdate />} />
-        <Route path="/admin/:section" element={<AdminFeature />} />
-
-        <Route
-          path="/student-dashboard"
-          element={<StudentDashboard />}
+        
+        {/* Admin Protected Routes */}
+        <Route 
+          path="/admin/dashboard" 
+          element={
+            <AdminProtectedRoute>
+              <AdminDashboard />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/students" 
+          element={
+            <AdminProtectedRoute>
+              <StudentManage />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/students/register" 
+          element={
+            <AdminProtectedRoute>
+              <StudentRegistration />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/students/edit" 
+          element={
+            <AdminProtectedRoute>
+              <StudentUpdate />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/faculty" 
+          element={
+            <AdminProtectedRoute>
+              <FacultyManage />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/faculty/register" 
+          element={
+            <AdminProtectedRoute>
+              <FacultyRegistration />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/faculty/edit" 
+          element={
+            <AdminProtectedRoute>
+              <FacultyUpdate />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/subjects" 
+          element={
+            <AdminProtectedRoute>
+              <SubjectManage />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/subjects/add" 
+          element={
+            <AdminProtectedRoute>
+              <SubjectAdd />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/subjects/view" 
+          element={
+            <AdminProtectedRoute>
+              <SubjectView />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/subjects/edit" 
+          element={
+            <AdminProtectedRoute>
+              <SubjectUpdate />
+            </AdminProtectedRoute>
+          } 
+/>
+         
+        <Route 
+          path="/admin/devices" 
+          element={
+            <AdminProtectedRoute>
+              <DeviceManage />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/devices/add" 
+          element={
+            <AdminProtectedRoute>
+              <DeviceAdd />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/devices/view" 
+          element={
+            <AdminProtectedRoute>
+              <DeviceView />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/devices/edit" 
+          element={
+            <AdminProtectedRoute>
+              <DeviceEdit />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/:section" 
+          element={
+            <AdminProtectedRoute>
+              <AdminFeature />
+            </AdminProtectedRoute>
+          } 
+        />
+        
+        {/* Student Protected Routes */}
+        <Route 
+          path="/student-dashboard" 
+          element={
+            <StudentProtectedRoute>
+              <StudentDashboard />
+            </StudentProtectedRoute>
+          } 
         />
 
-        <Route
-          path="/faculty-dashboard"
-          element={<FacultyDashboard />}
+        {/* Faculty Protected Routes */}
+        <Route 
+          path="/faculty-dashboard" 
+          element={
+            <FacultyProtectedRoute>
+              <FacultyDashboard />
+            </FacultyProtectedRoute>
+          } 
         />
 
       </Routes>

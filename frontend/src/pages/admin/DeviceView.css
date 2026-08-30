@@ -1,0 +1,6 @@
+@import "./FacultyRegistration.css";
+
+.device-view-header { margin-bottom: 4px; }
+.device-view-description { margin: -12px 0 18px; color: #666; font-size: 14px; }
+.device-view-message { margin-bottom: 20px; border-color: #ff6b6b; background: #fff5f5; }
+.device-view-table { min-width: 1200px; }

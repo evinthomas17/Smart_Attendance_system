@@ -1,0 +1,6 @@
+@import "./FacultyRegistration.css";
+
+.device-form-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.device-message { margin-bottom: 20px; border-color: #ff6b6b; background: #fff5f5; }
+.device-success-message { border-color: #51cf66; background: #f3fff3; }
+@media (max-width: 600px) { .device-form-row { grid-template-columns: 1fr; } }

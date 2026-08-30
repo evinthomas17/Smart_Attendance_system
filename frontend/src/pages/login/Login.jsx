@@ -102,6 +102,7 @@ function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="username"
             />
 
           </div>
@@ -121,6 +122,7 @@ function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
               />
 
               <span
@@ -138,10 +140,6 @@ function Login() {
             )}
 
         </div>
-
-          <div className="forgot-password">
-            Forgot your password?
-          </div>
 
           <button
             type="submit"

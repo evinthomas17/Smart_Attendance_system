@@ -192,13 +192,13 @@ function StudentManage() {
     } else {
       setStudents([]);
     }
-  }, [filters.classId, fetchStudents]);
+  }, [filters.classId, debouncedSearchQuery, fetchStudents]);
 
   useEffect(() => {
     if (filters.classId) {
       fetchStudents(filters.classId, debouncedSearchQuery, true);
     }
-  }, [debouncedSearchQuery, fetchStudents]);
+  }, [filters.classId, debouncedSearchQuery, fetchStudents]);
 /* eslint-enable react-hooks/set-state-in-effect */
 
   function handleFilterChange(key, value) {

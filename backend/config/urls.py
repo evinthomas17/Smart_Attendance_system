@@ -26,6 +26,7 @@ urlpatterns = [
     path("api/academics/", include("academics.urls")),
     path("api/students/", include("students.urls")),
     path("api/faculty/", include("faculty.urls")),
+    path("api/devices/", include("devices.urls")),
 ]
 
 if settings.DEBUG:
