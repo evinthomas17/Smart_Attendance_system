@@ -138,13 +138,13 @@ function FacultyManage() {
     } else {
       setFaculty([]);
     }
-  }, [filters.course, fetchFaculty]);
+  }, [filters.course, fetchFaculty, debouncedSearchQuery]);
 
   useEffect(() => {
     if (filters.course) {
       fetchFaculty(filters.course, debouncedSearchQuery, true);
     }
-  }, [debouncedSearchQuery, fetchFaculty]);
+  }, [debouncedSearchQuery, filters.course, fetchFaculty]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   function handleFilterChange(key, value) {

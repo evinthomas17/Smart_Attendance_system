@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from accounts.models import User
 from academics.models import Course, Department
-from .models import Faculty, FacultyCourse
+from .models import Faculty, FacultyCourse, FacultyClassAssignment
 
 
 class FacultyCourseSerializer(serializers.ModelSerializer):
@@ -110,7 +110,10 @@ class FacultyListSerializer(serializers.ModelSerializer):
     def get_class_teacher(self, faculty):
         """Get the class teacher assignment for this faculty, if any."""
         from .models import FacultyClassAssignment
-        assignment = faculty.class_teacher_assignment
+        try:
+            assignment = faculty.class_teacher_assignment
+        except FacultyClassAssignment.DoesNotExist:
+            return None
         if assignment and assignment.is_active:
             return {
                 "id": assignment.id,

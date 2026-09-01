@@ -68,23 +68,57 @@ function FacultyRegistration() {
   const [loadingSemesters, setLoadingSemesters] = useState(false);
   const [loadingDivisions, setLoadingDivisions] = useState(false);
 
+  const filterCoursesByDepartment = useCallback((departmentId, courseList = []) => {
+    if (!departmentId) return [];
+    const normalizedDepartmentId = Number(departmentId);
+    return courseList.filter((course) => {
+      const courseDepartmentId = course.department ?? course.department_id ?? course.departmentId;
+      return Number(courseDepartmentId) === normalizedDepartmentId;
+    });
+  }, []);
+
+  const formatSemesterLabel = (semester) => {
+    if (!semester) return "Semester";
+    if (semester.name) return semester.name;
+    if (semester.semester_name) return semester.semester_name;
+    if (semester.semester_number !== undefined && semester.semester_number !== null) {
+      return `Semester ${semester.semester_number}`;
+    }
+    return "Semester";
+  };
+
   // Handle department change - fetch courses when department changes
   const handleDepartmentChange = useCallback((e) => {
     const departmentId = e.target.value;
-    setFormData((prev) => ({ ...prev, department: departmentId }));
+    setFormData((prev) => ({
+      ...prev,
+      department: departmentId,
+      courses: [],
+      is_class_teacher: false,
+      class_teacher_course: "",
+      class_teacher_semester: "",
+      academic_class: "",
+    }));
     setFieldErrors((prev) => {
-      if (prev.department) {
-        return { ...prev, department: "" };
-      }
-      return prev;
+      const nextErrors = { ...prev };
+      delete nextErrors.department;
+      delete nextErrors.courses;
+      delete nextErrors.academic_class;
+      return nextErrors;
     });
+    setClassTeacherCourses([]);
+    setSemesters([]);
+    setDivisions([]);
     
     // Fetch courses for the selected department
     if (departmentId) {
       setLoadingCourses(true);
       facultyService.getCourses(departmentId)
         .then((response) => {
-          setCourses(response.data);
+          const departmentCourses = filterCoursesByDepartment(departmentId, response.data || []);
+          setCourses(departmentCourses);
+          // Also update class teacher courses to all courses in the department
+          setClassTeacherCourses(departmentCourses);
         })
         .catch((err) => {
           console.error("Failed to load courses:", err);
@@ -94,9 +128,8 @@ function FacultyRegistration() {
         });
     } else {
       setCourses([]);
-      setFormData((prev) => ({ ...prev, courses: [] }));
     }
-  }, []);
+  }, [filterCoursesByDepartment]);
 
   // Handle class teacher checkbox change
   const handleClassTeacherChange = useCallback((e) => {
@@ -115,13 +148,11 @@ function FacultyRegistration() {
     });
 
     if (isClassTeacher) {
-      // Load class teacher courses from the selected teaching courses
-      const selectedCourseIds = formData.courses;
-      if (selectedCourseIds.length > 0) {
+      // Load class teacher courses from ALL courses in the selected department
+      // (independent of teaching course selection)
+      if (courses.length > 0) {
         setLoadingClassTeacherCourses(true);
-        // Filter courses from the selected teaching courses
-        const selectedCourses = courses.filter(c => selectedCourseIds.includes(c.id));
-        setClassTeacherCourses(selectedCourses);
+        setClassTeacherCourses(courses);
         setLoadingClassTeacherCourses(false);
       }
     } else {
@@ -129,7 +160,7 @@ function FacultyRegistration() {
       setSemesters([]);
       setDivisions([]);
     }
-  }, [formData.courses, courses]);
+  }, [courses]);
 
   // Handle class teacher course selection
   const handleClassTeacherCourseChange = useCallback((e) => {
@@ -194,7 +225,9 @@ function FacultyRegistration() {
     facultyService.getCourses(departmentId)
       .then((response) => {
         if (!cancelled) {
-          setCourses(response.data);
+          const departmentCourses = filterCoursesByDepartment(departmentId, response.data || []);
+          setCourses(departmentCourses);
+          setClassTeacherCourses(departmentCourses);
         }
       })
       .catch((err) => {
@@ -209,7 +242,7 @@ function FacultyRegistration() {
     return () => {
       cancelled = true;
     };
-  }, [academicInfo.departmentId]);
+  }, [academicInfo.departmentId, filterCoursesByDepartment]);
 
   const validateField = useCallback((name, value) => {
     setFieldErrors((prev) => {
@@ -441,6 +474,12 @@ function FacultyRegistration() {
     setFieldErrors({});
     setSemesters([]);
     setDivisions([]);
+    // Reset class teacher courses based on department
+    if (academicInfo.departmentId) {
+      setClassTeacherCourses(courses);
+    } else {
+      setClassTeacherCourses([]);
+    }
   };
 
   const handleGoBack = () => {
@@ -678,25 +717,6 @@ function FacultyRegistration() {
                                   : prev.courses.filter((id) => id !== course.id);
                                 return { ...prev, courses: courseIds };
                               });
-                              // Update class teacher courses if class teacher is selected
-                              if (formData.is_class_teacher) {
-                                const updatedCourseIds = e.target.checked
-                                  ? [...formData.courses, course.id]
-                                  : formData.courses.filter((id) => id !== course.id);
-                                const selectedCourses = courses.filter(c => updatedCourseIds.includes(c.id));
-                                setClassTeacherCourses(selectedCourses);
-                                // Reset class teacher selections if currently selected course was removed
-                                if (!e.target.checked && formData.class_teacher_course === course.id) {
-                                  setFormData((prev) => ({
-                                    ...prev,
-                                    class_teacher_course: "",
-                                    class_teacher_semester: "",
-                                    academic_class: "",
-                                  }));
-                                  setSemesters([]);
-                                  setDivisions([]);
-                                }
-                              }
                               if (fieldErrors.courses) {
                                 setFieldErrors((prev) => ({ ...prev, courses: "" }));
                               }
@@ -723,7 +743,7 @@ function FacultyRegistration() {
             <section className="card class-teacher-card">
               <h2 className="card-title">Class Teacher Assignment</h2>
               <p className="section-description">
-                Optionally assign this faculty member as a class teacher for one of their teaching courses.
+                Optionally assign this faculty member as a class teacher for a course in their department.
               </p>
               <div className="form-row">
                 <div className="form-group full-width">
@@ -791,7 +811,7 @@ function FacultyRegistration() {
                           {loadingClassTeacherCourses
                             ? "Loading courses..."
                             : classTeacherCourses.length === 0
-                              ? "No teaching courses selected"
+                              ? "No courses available for this department"
                               : "Select a course"}
                         </option>
                         {classTeacherCourses.map((course) => (
@@ -822,7 +842,7 @@ function FacultyRegistration() {
                         </option>
                         {semesters.map((sem) => (
                           <option key={sem.id} value={sem.id}>
-                            {sem.semester_name} ({sem.year})
+                            {formatSemesterLabel(sem)}
                           </option>
                         ))}
                       </select>
@@ -859,7 +879,7 @@ function FacultyRegistration() {
                         </option>
                         {divisions.map((div) => (
                           <option key={div.id} value={div.id}>
-                            {div.division} - {div.course_name} {div.semester_name}
+                            {div.division}
                           </option>
                         ))}
                       </select>

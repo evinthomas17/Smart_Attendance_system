@@ -36,6 +36,7 @@ class CourseSerializer(serializers.ModelSerializer):
 class SemesterSerializer(serializers.ModelSerializer):
     course_name = serializers.CharField(source="course.name", read_only=True)
     course_code = serializers.CharField(source="course.code", read_only=True)
+    semester_name = serializers.CharField(source="name", read_only=True)
 
     class Meta:
         model = Semester
@@ -46,6 +47,7 @@ class SemesterSerializer(serializers.ModelSerializer):
             "course_code",
             "semester_number",
             "name",
+            "semester_name",
             "is_active",
             "created_at",
             "updated_at",
