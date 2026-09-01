@@ -11,6 +11,7 @@ function FacultyTable({ faculty, loading, onDelete, onEdit }) {
             <th>Email</th>
             <th>Phone</th>
             <th>Teaching Course</th>
+            <th>Class Teacher</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -24,6 +25,11 @@ function FacultyTable({ faculty, loading, onDelete, onEdit }) {
                 {member.teaching_courses && member.teaching_courses.length > 0
                   ? member.teaching_courses.map(c => c.name).join(", ")
                   : "—"}
+              </td>
+              <td>
+                {member.class_teacher
+                  ? member.class_teacher.display || "Yes"
+                  : "No"}
               </td>
               <td className="action-buttons">
                 <button

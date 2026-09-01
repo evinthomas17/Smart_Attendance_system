@@ -7,9 +7,10 @@ from rest_framework.views import APIView
 
 from adminpanel.permissions import IsAdminRole
 
-from .models import Faculty, FacultyCourse
+from .models import Faculty, FacultyCourse, FacultyClassAssignment
 from .serializers import (
     FacultyCourseAssignmentSerializer,
+    FacultyClassAssignmentSerializer,
     FacultyListSerializer,
     FacultyRegistrationSerializer,
     FacultySerializer,
@@ -107,4 +108,37 @@ class FacultyCourseAssignmentDetailAPIView(APIView):
         assignment = get_object_or_404(FacultyCourse, pk=assignment_id, faculty=faculty)
         assignment.is_active = False
         assignment.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FacultyClassAssignmentAPIView(APIView):
+    """Manage class teacher assignment for a specific faculty member."""
+    permission_classes = [IsAdminRole]
+
+    def get(self, request, pk):
+        """Get the class teacher assignment for a faculty."""
+        faculty = get_object_or_404(Faculty, pk=pk)
+        assignment = faculty.class_teacher_assignment
+        if assignment and assignment.is_active:
+            serializer = FacultyClassAssignmentSerializer(assignment)
+            return Response(serializer.data)
+        return Response(None, status=status.HTTP_200_OK)
+
+    def post(self, request, pk):
+        """Assign or update class teacher assignment."""
+        faculty = get_object_or_404(Faculty, pk=pk)
+        data = request.data.copy()
+        data['faculty'] = faculty.id
+        serializer = FacultyClassAssignmentSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        assignment = serializer.save()
+        return Response(FacultyClassAssignmentSerializer(assignment).data, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, pk):
+        """Remove class teacher assignment."""
+        faculty = get_object_or_404(Faculty, pk=pk)
+        assignment = faculty.class_teacher_assignment
+        if assignment and assignment.is_active:
+            assignment.is_active = False
+            assignment.save()
         return Response(status=status.HTTP_204_NO_CONTENT)

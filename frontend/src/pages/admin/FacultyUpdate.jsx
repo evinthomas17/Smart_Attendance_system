@@ -38,15 +38,25 @@ function FacultyUpdate() {
     password: "",
     confirm_password: "",
     courses: [],
+    is_class_teacher: false,
+    class_teacher_course: "",
+    class_teacher_semester: "",
+    academic_class: "",
   });
 
   const [departments, setDepartments] = useState([]);
   const [courses, setCourses] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
+  const [classTeacherCourses, setClassTeacherCourses] = useState([]);
+  const [semesters, setSemesters] = useState([]);
+  const [divisions, setDivisions] = useState([]);
 
   const [fieldErrors, setFieldErrors] = useState({});
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [loadingCourses, setLoadingCourses] = useState(false);
+  const [loadingClassTeacherCourses, setLoadingClassTeacherCourses] = useState(false);
+  const [loadingSemesters, setLoadingSemesters] = useState(false);
+  const [loadingDivisions, setLoadingDivisions] = useState(false);
 
   const [originalFormData, setOriginalFormData] = useState(null);
   const [originalCourses, setOriginalCourses] = useState([]);
@@ -93,6 +103,9 @@ function FacultyUpdate() {
         // Use departmentId from state (passed from FacultyManage)
         const departmentId = academicInfo.departmentId;
         
+        // Get class teacher data if it exists
+        const classTeacherData = faculty.class_teacher || null;
+        
         const formDataValues = {
           full_name: faculty.full_name || "",
           email: faculty.email || "",
@@ -100,10 +113,36 @@ function FacultyUpdate() {
           password: "",
           confirm_password: "",
           courses: courseIds,
+          is_class_teacher: !!classTeacherData,
+          class_teacher_course: classTeacherData?.course?.id || "",
+          class_teacher_semester: classTeacherData?.semester?.id || "",
+          academic_class: classTeacherData?.id || "",
         };
         setFormData(formDataValues);
         setOriginalFormData(formDataValues);
         setOriginalCourses(courseIds);
+
+        // If class teacher is assigned, load the cascading data
+        if (classTeacherData && courseIds.length > 0) {
+          const selectedCourses = courses.filter(c => courseIds.includes(c.id));
+          setClassTeacherCourses(selectedCourses);
+          
+          // Load semesters for the class teacher course
+          if (classTeacherData.course?.id) {
+            try {
+              const semResponse = await facultyService.getSemesters(classTeacherData.course.id);
+              setSemesters(semResponse.data);
+              
+              // Load divisions for the semester
+              if (classTeacherData.semester?.id) {
+                const divResponse = await facultyService.getDivisions(classTeacherData.course.id, classTeacherData.semester.id);
+                setDivisions(divResponse.data);
+              }
+            } catch (err) {
+              console.error("Failed to load class teacher cascading data:", err);
+            }
+          }
+        }
 
         // Fetch the department to set it as read-only
         if (departmentId) {
@@ -132,6 +171,9 @@ function FacultyUpdate() {
             departmentId = teachingCourses[0].department_id || teachingCourses[0].department;
           }
           
+          // Get class teacher data if it exists
+          const classTeacherData = faculty.class_teacher || null;
+          
           const formDataValues = {
             full_name: faculty.full_name || "",
             email: faculty.email || "",
@@ -139,6 +181,10 @@ function FacultyUpdate() {
             password: "",
             confirm_password: "",
             courses: courseIds,
+            is_class_teacher: !!classTeacherData,
+            class_teacher_course: classTeacherData?.course?.id || "",
+            class_teacher_semester: classTeacherData?.semester?.id || "",
+            academic_class: classTeacherData?.id || "",
           };
           setFormData(formDataValues);
           setOriginalFormData(formDataValues);
@@ -218,6 +264,93 @@ function FacultyUpdate() {
     validateField(name, value);
   };
 
+  // Handle class teacher radio change
+  const handleClassTeacherChange = useCallback((e) => {
+    const isClassTeacher = e.target.checked;
+    setFormData((prev) => ({
+      ...prev,
+      is_class_teacher: isClassTeacher,
+      class_teacher_course: "",
+      class_teacher_semester: "",
+      academic_class: "",
+    }));
+    setFieldErrors((prev) => {
+      const newErrors = { ...prev };
+      if (prev.academic_class) delete newErrors.academic_class;
+      return newErrors;
+    });
+
+    if (isClassTeacher) {
+      // Load class teacher courses from the selected teaching courses
+      const selectedCourseIds = formData.courses;
+      if (selectedCourseIds.length > 0) {
+        setLoadingClassTeacherCourses(true);
+        // Filter courses from the selected teaching courses
+        const selectedCourses = courses.filter(c => selectedCourseIds.includes(c.id));
+        setClassTeacherCourses(selectedCourses);
+        setLoadingClassTeacherCourses(false);
+      }
+    } else {
+      setClassTeacherCourses([]);
+      setSemesters([]);
+      setDivisions([]);
+    }
+  }, [formData.courses, courses]);
+
+  // Handle class teacher course selection
+  const handleClassTeacherCourseChange = useCallback((e) => {
+    const courseId = parseInt(e.target.value, 10);
+    setFormData((prev) => ({
+      ...prev,
+      class_teacher_course: courseId,
+      class_teacher_semester: "",
+      academic_class: "",
+    }));
+    setSemesters([]);
+    setDivisions([]);
+
+    if (courseId) {
+      setLoadingSemesters(true);
+      facultyService.getSemesters(courseId)
+        .then((response) => {
+          setSemesters(response.data);
+        })
+        .catch((err) => {
+          console.error("Failed to load semesters:", err);
+          setError("Failed to load semesters");
+        })
+        .finally(() => {
+          setLoadingSemesters(false);
+        });
+    }
+  }, []);
+
+  // Handle semester selection
+  const handleSemesterChange = useCallback((e) => {
+    const semesterId = parseInt(e.target.value, 10);
+    setFormData((prev) => ({
+      ...prev,
+      class_teacher_semester: semesterId,
+      academic_class: "",
+    }));
+    setDivisions([]);
+
+    if (semesterId && formData.class_teacher_course) {
+      setLoadingDivisions(true);
+      facultyService.getDivisions(formData.class_teacher_course, semesterId)
+        .then((response) => {
+          setDivisions(response.data);
+        })
+        .catch((err) => {
+          console.error("Failed to load divisions:", err);
+          setError("Failed to load divisions");
+        })
+        .finally(() => {
+          setLoadingDivisions(false);
+        });
+    }
+  }, [formData.class_teacher_course]);
+
   const validateForm = () => {
     let isValid = true;
     const newErrors = {};
@@ -254,6 +387,20 @@ function FacultyUpdate() {
       isValid = false;
     }
 
+    // Validate class teacher fields if class teacher is selected
+    if (formData.is_class_teacher) {
+      if (!formData.class_teacher_course) {
+        newErrors.academic_class = "Please select a course for class teacher assignment";
+        isValid = false;
+      } else if (!formData.class_teacher_semester) {
+        newErrors.academic_class = "Please select a semester for class teacher assignment";
+        isValid = false;
+      } else if (!formData.academic_class) {
+        newErrors.academic_class = "Please select a division for class teacher assignment";
+        isValid = false;
+      }
+    }
+
     setFieldErrors(newErrors);
     return isValid;
   };
@@ -278,6 +425,15 @@ function FacultyUpdate() {
         phone: formData.phone,
         courses: formData.courses,
       };
+
+      // Include class teacher assignment if selected
+      if (formData.is_class_teacher) {
+        data.is_class_teacher = true;
+        data.academic_class = formData.academic_class;
+      } else {
+        // If no longer class teacher, explicitly set to remove assignment
+        data.is_class_teacher = false;
+      }
 
       // Only include password if provided
       if (formData.password) {
@@ -665,6 +821,23 @@ function FacultyUpdate() {
                                 ? [...formData.courses, course.id]
                                 : formData.courses.filter(id => id !== course.id);
                               setFormData(prev => ({ ...prev, courses: courseIds }));
+                              
+                              // Update class teacher courses if class teacher is selected
+                              if (formData.is_class_teacher) {
+                                const selectedCourses = courses.filter(c => courseIds.includes(c.id));
+                                setClassTeacherCourses(selectedCourses);
+                                // Reset class teacher selections if currently selected course was removed
+                                if (!e.target.checked && formData.class_teacher_course === course.id) {
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    class_teacher_course: "",
+                                    class_teacher_semester: "",
+                                    academic_class: "",
+                                  }));
+                                  setSemesters([]);
+                                  setDivisions([]);
+                                }
+                              }
                               if (fieldErrors.courses) {
                                 setFieldErrors(prev => ({ ...prev, courses: "" }));
                               }
@@ -685,6 +858,156 @@ function FacultyUpdate() {
                     Select one or more teaching courses
                   </p>
                 </div>
+              </div>
+            </section>
+
+            <section className="card class-teacher-card">
+              <h2 className="card-title">Class Teacher Assignment</h2>
+              <p className="section-description">
+                Optionally assign this faculty member as a class teacher for one of their teaching courses.
+              </p>
+              <div className="form-row">
+                <div className="form-group full-width">
+                  <label className="radio-group-label">Class Teacher <span className="required">*</span></label>
+                  <div className="radio-group" role="group" aria-labelledby="class-teacher-label">
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="is_class_teacher"
+                        value="no"
+                        checked={!formData.is_class_teacher}
+                        onChange={() => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            is_class_teacher: false,
+                            class_teacher_course: "",
+                            class_teacher_semester: "",
+                            academic_class: "",
+                          }));
+                          setSemesters([]);
+                          setDivisions([]);
+                          setFieldErrors((prev) => {
+                            const newErrors = { ...prev };
+                            if (newErrors.academic_class) delete newErrors.academic_class;
+                            return newErrors;
+                          });
+                        }}
+                        disabled={loading}
+                        className="radio-input"
+                      />
+                      <span className="radio-text">No</span>
+                    </label>
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="is_class_teacher"
+                        value="yes"
+                        checked={formData.is_class_teacher}
+                        onChange={handleClassTeacherChange}
+                        disabled={loading || formData.courses.length === 0}
+                        className="radio-input"
+                      />
+                      <span className="radio-text">Yes</span>
+                    </label>
+                  </div>
+                  {formData.courses.length === 0 && (
+                    <p className="field-hint" style={{ marginTop: "8px", fontSize: "12px", color: "#d97706" }}>
+                      Please select at least one teaching course to assign as class teacher
+                    </p>
+                  )}
+                </div>
+
+                {formData.is_class_teacher && (
+                  <>
+                    <div className="form-group">
+                      <label htmlFor="class_teacher_course">Course <span className="required">*</span></label>
+                      <select
+                        id="class_teacher_course"
+                        value={formData.class_teacher_course || ""}
+                        onChange={handleClassTeacherCourseChange}
+                        disabled={loading || loadingClassTeacherCourses || classTeacherCourses.length === 0}
+                        className={`filter-input ${fieldErrors.academic_class && !formData.class_teacher_course ? "error" : ""}`}
+                      >
+                        <option value="">
+                          {loadingClassTeacherCourses
+                            ? "Loading courses..."
+                            : classTeacherCourses.length === 0
+                              ? "No teaching courses selected"
+                              : "Select a course"}
+                        </option>
+                        {classTeacherCourses.map((course) => (
+                          <option key={course.id} value={course.id}>
+                            {course.name} ({course.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="class_teacher_semester">Semester <span className="required">*</span></label>
+                      <select
+                        id="class_teacher_semester"
+                        value={formData.class_teacher_semester || ""}
+                        onChange={handleSemesterChange}
+                        disabled={loading || loadingSemesters || !formData.class_teacher_course || semesters.length === 0}
+                        className={`filter-input ${fieldErrors.academic_class && !formData.class_teacher_semester ? "error" : ""}`}
+                      >
+                        <option value="">
+                          {loadingSemesters
+                            ? "Loading semesters..."
+                            : !formData.class_teacher_course
+                              ? "Select a course first"
+                              : semesters.length === 0
+                                ? "No semesters available"
+                                : "Select a semester"}
+                        </option>
+                        {semesters.map((sem) => (
+                          <option key={sem.id} value={sem.id}>
+                            {sem.semester_name} ({sem.year})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="academic_class">Division <span className="required">*</span></label>
+                      <select
+                        id="academic_class"
+                        value={formData.academic_class || ""}
+                        onChange={(e) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            academic_class: parseInt(e.target.value, 10),
+                          }));
+                          setFieldErrors((prev) => {
+                            if (prev.academic_class) {
+                              return { ...prev, academic_class: "" };
+                            }
+                            return prev;
+                          });
+                        }}
+                        disabled={loading || loadingDivisions || !formData.class_teacher_semester || divisions.length === 0}
+                        className={`filter-input ${fieldErrors.academic_class && !formData.academic_class ? "error" : ""}`}
+                      >
+                        <option value="">
+                          {loadingDivisions
+                            ? "Loading divisions..."
+                            : !formData.class_teacher_semester
+                              ? "Select a semester first"
+                              : divisions.length === 0
+                                ? "No divisions available"
+                                : "Select a division"}
+                        </option>
+                        {divisions.map((div) => (
+                          <option key={div.id} value={div.id}>
+                            {div.division} - {div.course_name} {div.semester_name}
+                          </option>
+                        ))}
+                      </select>
+                      {fieldErrors.academic_class && <p className="field-error">{fieldErrors.academic_class}</p>}
+                    </div>
+                  </>
+                )}
               </div>
             </section>
 

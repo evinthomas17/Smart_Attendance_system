@@ -6,8 +6,12 @@ export const getSubjects = (courseId, semesterId = "", search = "") =>
     params: { course: courseId, semester: semesterId, search },
   });
 
-export const getSubject = (subjectId) =>
-  api.get(`/academics/subjects/${subjectId}/`);
+export const getSubject = (subjectId) => {
+  if (!subjectId || isNaN(Number(subjectId))) {
+    return Promise.reject(new Error("Invalid subject ID"));
+  }
+  return api.get(`/academics/subjects/${subjectId}/`);
+};
 
 export const createSubject = (formData) =>
   api.post("/academics/subjects/", formData);

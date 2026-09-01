@@ -53,6 +53,7 @@ class FacultyListSerializer(serializers.ModelSerializer):
     department = serializers.SerializerMethodField()
     course = serializers.SerializerMethodField()
     teaching_courses = serializers.SerializerMethodField()
+    class_teacher = serializers.SerializerMethodField()
 
     class Meta:
         model = Faculty
@@ -65,6 +66,7 @@ class FacultyListSerializer(serializers.ModelSerializer):
             "department",
             "course",
             "teaching_courses",
+            "class_teacher",
         ]
         read_only_fields = fields
 
@@ -105,6 +107,21 @@ class FacultyListSerializer(serializers.ModelSerializer):
             for assignment in assignments
         ]
 
+    def get_class_teacher(self, faculty):
+        """Get the class teacher assignment for this faculty, if any."""
+        from .models import FacultyClassAssignment
+        assignment = faculty.class_teacher_assignment
+        if assignment and assignment.is_active:
+            return {
+                "id": assignment.id,
+                "course_name": assignment.academic_class.course.name,
+                "semester_name": assignment.academic_class.semester.name,
+                "division": assignment.academic_class.division,
+                "class_code": assignment.academic_class.class_code,
+                "display": f"{assignment.academic_class.course.name} - {assignment.academic_class.semester.name} - {assignment.academic_class.division}",
+            }
+        return None
+
 
 class FacultyRegistrationSerializer(serializers.ModelSerializer):
     """Admin-only input for creating a Faculty and its authentication account."""
@@ -119,6 +136,8 @@ class FacultyRegistrationSerializer(serializers.ModelSerializer):
         required=True,
         help_text="List of course IDs the faculty will teach"
     )
+    is_class_teacher = serializers.BooleanField(write_only=True, required=False, default=False)
+    academic_class = serializers.IntegerField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Faculty
@@ -130,6 +149,8 @@ class FacultyRegistrationSerializer(serializers.ModelSerializer):
             "phone",
             "department",
             "courses",
+            "is_class_teacher",
+            "academic_class",
         ]
         extra_kwargs = {
             "employee_id": {"required": False},
@@ -158,6 +179,8 @@ class FacultyRegistrationSerializer(serializers.ModelSerializer):
         # Cross-field validation: ensure courses belong to the department
         department_id = attrs.get("department")
         course_ids = attrs.get("courses", [])
+        is_class_teacher = attrs.get("is_class_teacher", False)
+        academic_class_id = attrs.get("academic_class")
         
         if department_id and course_ids:
             # Check that all courses belong to the specified department
@@ -170,6 +193,32 @@ class FacultyRegistrationSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     "courses": "One or more selected courses do not belong to the specified department."
                 })
+        
+        # Validate class teacher assignment
+        if is_class_teacher and not academic_class_id:
+            raise serializers.ValidationError({
+                "academic_class": "Academic class is required when assigning as class teacher."
+            })
+        
+        if academic_class_id and not is_class_teacher:
+            raise serializers.ValidationError({
+                "academic_class": "Academic class should not be selected when not a class teacher."
+            })
+        
+        if academic_class_id:
+            from academics.models import AcademicClass
+            try:
+                academic_class = AcademicClass.objects.get(id=academic_class_id, is_active=True)
+                # Verify the academic class course is in the faculty's course list
+                if academic_class.course_id not in course_ids:
+                    raise serializers.ValidationError({
+                        "academic_class": "The selected class's course must be in the faculty's teaching courses."
+                    })
+            except AcademicClass.DoesNotExist:
+                raise serializers.ValidationError({
+                    "academic_class": "The selected academic class does not exist or is inactive."
+                })
+        
         return attrs
 
     def validate_phone(self, value):
@@ -182,6 +231,8 @@ class FacultyRegistrationSerializer(serializers.ModelSerializer):
         email = validated_data.pop("email")
         password = validated_data.pop("password")
         course_ids = validated_data.pop("courses")
+        is_class_teacher = validated_data.pop("is_class_teacher", False)
+        academic_class_id = validated_data.pop("academic_class", None)
 
         user = User.objects.create_user(
             email=email,
@@ -207,6 +258,15 @@ class FacultyRegistrationSerializer(serializers.ModelSerializer):
         for course_id in course_ids:
             FacultyCourse.objects.create(faculty=faculty, course_id=course_id)
 
+        # Create class teacher assignment if provided
+        if is_class_teacher and academic_class_id:
+            from .models import FacultyClassAssignment
+            FacultyClassAssignment.objects.create(
+                faculty=faculty,
+                academic_class_id=academic_class_id,
+                is_active=True
+            )
+
         return faculty
 
 
@@ -223,6 +283,8 @@ class FacultyUpdateSerializer(serializers.ModelSerializer):
         required=False,
         help_text="List of course IDs the faculty will teach"
     )
+    is_class_teacher = serializers.BooleanField(write_only=True, required=False)
+    academic_class = serializers.IntegerField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Faculty
@@ -234,6 +296,8 @@ class FacultyUpdateSerializer(serializers.ModelSerializer):
             "password",
             "confirm_password",
             "courses",
+            "is_class_teacher",
+            "academic_class",
         ]
         extra_kwargs = {
             "employee_id": {"required": False, "read_only": True},
@@ -266,6 +330,8 @@ class FacultyUpdateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         password = attrs.get("password", "")
         confirm_password = attrs.get("confirm_password", "")
+        is_class_teacher = attrs.get("is_class_teacher")
+        academic_class_id = attrs.get("academic_class")
         
         # Password validation - only if password is provided
         if password or confirm_password:
@@ -294,6 +360,34 @@ class FacultyUpdateSerializer(serializers.ModelSerializer):
                         raise serializers.ValidationError({
                             "courses": "One or more selected courses do not belong to the faculty's department."
                         })
+        
+        # Validate class teacher assignment
+        if is_class_teacher is not None:
+            if is_class_teacher and not academic_class_id:
+                raise serializers.ValidationError({
+                    "academic_class": "Academic class is required when assigning as class teacher."
+                })
+            
+            if academic_class_id and not is_class_teacher:
+                raise serializers.ValidationError({
+                    "academic_class": "Academic class should not be selected when not a class teacher."
+                })
+        
+        if academic_class_id:
+            from academics.models import AcademicClass
+            try:
+                academic_class = AcademicClass.objects.get(id=academic_class_id, is_active=True)
+                # If updating courses, verify the academic class course is in the new courses
+                course_ids = attrs.get("courses")
+                if course_ids and academic_class.course_id not in course_ids:
+                    raise serializers.ValidationError({
+                        "academic_class": "The selected class's course must be in the faculty's teaching courses."
+                    })
+            except AcademicClass.DoesNotExist:
+                raise serializers.ValidationError({
+                    "academic_class": "The selected academic class does not exist or is inactive."
+                })
+        
         return attrs
 
     def validate_phone(self, value):
@@ -317,6 +411,10 @@ class FacultyUpdateSerializer(serializers.ModelSerializer):
             instance.user.set_password(password)
             instance.user.save()
 
+        # Handle class teacher assignment update
+        is_class_teacher = validated_data.pop("is_class_teacher", None)
+        academic_class_id = validated_data.pop("academic_class", None)
+        
         # Handle course assignments update
         course_ids = validated_data.pop("courses", None)
         
@@ -336,6 +434,31 @@ class FacultyUpdateSerializer(serializers.ModelSerializer):
                     course_id=course_id,
                     defaults={"is_active": True}
                 )
+
+        # Update class teacher assignment if provided
+        if is_class_teacher is not None:
+            from .models import FacultyClassAssignment
+            
+            if is_class_teacher and academic_class_id:
+                # Create or update class teacher assignment
+                FacultyClassAssignment.objects.filter(
+                    faculty=instance,
+                    is_active=True
+                ).update(is_active=False)
+                
+                FacultyClassAssignment.objects.update_or_create(
+                    faculty=instance,
+                    defaults={
+                        "academic_class_id": academic_class_id,
+                        "is_active": True
+                    }
+                )
+            elif not is_class_teacher:
+                # Remove class teacher assignment
+                FacultyClassAssignment.objects.filter(
+                    faculty=instance,
+                    is_active=True
+                ).update(is_active=False)
 
         return instance
 
@@ -357,3 +480,53 @@ class FacultyCourseAssignmentSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         faculty = self.context["faculty"]
         return FacultyCourse.objects.create(faculty=faculty, **validated_data)
+
+
+class FacultyClassAssignmentSerializer(serializers.ModelSerializer):
+    """Serializer for class teacher assignments."""
+    
+    course_name = serializers.CharField(source="academic_class.course.name", read_only=True)
+    course_code = serializers.CharField(source="academic_class.course.code", read_only=True)
+    semester_name = serializers.CharField(source="academic_class.semester.name", read_only=True)
+    semester_number = serializers.IntegerField(source="academic_class.semester.semester_number", read_only=True)
+    division = serializers.CharField(source="academic_class.division", read_only=True)
+    class_code = serializers.CharField(source="academic_class.class_code", read_only=True)
+    faculty_name = serializers.CharField(source="faculty.full_name", read_only=True)
+    faculty_employee_id = serializers.CharField(source="faculty.employee_id", read_only=True)
+
+    class Meta:
+        model = FacultyClassAssignment
+        fields = [
+            "id",
+            "faculty",
+            "faculty_name",
+            "faculty_employee_id",
+            "academic_class",
+            "course_name",
+            "course_code",
+            "semester_name",
+            "semester_number",
+            "division",
+            "class_code",
+            "assigned_at",
+            "is_active",
+        ]
+        read_only_fields = ["id", "assigned_at", "faculty_name", "faculty_employee_id"]
+
+    def validate_academic_class(self, value):
+        """Validate that the academic class exists and is active."""
+        if not value.is_active:
+            raise serializers.ValidationError("The selected class is not active.")
+        return value
+
+    @transaction.atomic
+    def create(self, validated_data):
+        """Create or update class teacher assignment."""
+        # Ensure only one active class teacher per class
+        academic_class = validated_data["academic_class"]
+        FacultyClassAssignment.objects.filter(
+            academic_class=academic_class,
+            is_active=True
+        ).update(is_active=False)
+        
+        return FacultyClassAssignment.objects.create(**validated_data)

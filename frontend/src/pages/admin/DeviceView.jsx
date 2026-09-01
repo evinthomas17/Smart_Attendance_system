@@ -62,7 +62,7 @@ function DeviceView() {
     navigate("/admin/devices/edit", {
       state: {
         classId: device.class_id,
-        deviceId: device.classroom?.device?.device_id || device.device_id,
+        deviceId: device.device_id,
         deviceName: device.device_name,
         deviceServiceUuid: device.device_service_uuid,
         classData: device.class_data,

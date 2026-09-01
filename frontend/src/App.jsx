@@ -2,7 +2,6 @@ import "./App.css";
 
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { useState, useEffect } from "react";
-import axios from "axios";
 import api from "./services/api";
 import { useNavigate } from "react-router-dom";
 
@@ -22,6 +21,9 @@ import DeviceManage from "./pages/admin/DeviceManage";
 import DeviceAdd from "./pages/admin/DeviceAdd";
 import DeviceView from "./pages/admin/DeviceView";
 import DeviceEdit from "./pages/admin/DeviceEdit";
+import TimetableManage from "./pages/admin/TimetableManage";
+import TimetableCreate from "./pages/admin/TimetableCreate";
+import TimetableView from "./pages/admin/TimetableView";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import FacultyDashboard from "./pages/faculty/FacultyDashboard";
 
@@ -44,18 +46,21 @@ function AdminProtectedRoute({ children }) {
 
       // Verify token with backend using existing dashboard endpoint
       try {
-        await api.get("/adminpanel/dashboard/");
-        setIsAuthenticated(true);
+        const response = await api.get("/adminpanel/dashboard/");
+        if (response.status === 200) {
+          setIsAuthenticated(true);
+        } else {
+          throw new Error("Token verification failed");
+        }
       } catch {
-
-    // Try to refresh token
+        // Try to refresh token
         const refreshToken = localStorage.getItem("refresh");
         if (refreshToken) {
           try {
-            const response = await axios.post("/api/accounts/token/refresh/", {
+            const refreshResponse = await api.post("/accounts/token/refresh/", {
               refresh: refreshToken,
             });
-            localStorage.setItem("access", response.data.access);
+            localStorage.setItem("access", refreshResponse.data.access);
             setIsAuthenticated(true);
           } catch {
             localStorage.removeItem("access");
@@ -99,7 +104,7 @@ function AdminProtectedRoute({ children }) {
   }
 
   return children;
-};
+}
 
 // Protected route for student dashboard
 function StudentProtectedRoute({ children }) {
@@ -122,12 +127,10 @@ function StudentProtectedRoute({ children }) {
         await api.get("/adminpanel/dashboard/");
         setIsAuthenticated(true);
       } catch {
-
-    // Try to refresh token
         const refreshToken = localStorage.getItem("refresh");
         if (refreshToken) {
           try {
-            const response = await axios.post("/api/accounts/token/refresh/", {
+            const response = await api.post("/accounts/token/refresh/", {
               refresh: refreshToken,
             });
             localStorage.setItem("access", response.data.access);
@@ -170,7 +173,7 @@ function StudentProtectedRoute({ children }) {
   }
 
   return children;
-};
+}
 
 // Protected route for faculty dashboard
 function FacultyProtectedRoute({ children }) {
@@ -193,12 +196,10 @@ function FacultyProtectedRoute({ children }) {
         await api.get("/adminpanel/dashboard/");
         setIsAuthenticated(true);
       } catch {
-
-    // Try to refresh token
         const refreshToken = localStorage.getItem("refresh");
         if (refreshToken) {
           try {
-            const response = await axios.post("/api/accounts/token/refresh/", {
+            const response = await api.post("/accounts/token/refresh/", {
               refresh: refreshToken,
             });
             localStorage.setItem("access", response.data.access);
@@ -246,7 +247,6 @@ function FacultyProtectedRoute({ children }) {
 function App() {
   return (
     <BrowserRouter>
-
       <Routes>
 
         <Route
@@ -349,8 +349,7 @@ function App() {
               <SubjectUpdate />
             </AdminProtectedRoute>
           } 
-/>
-         
+        />
         <Route 
           path="/admin/devices" 
           element={
@@ -384,6 +383,30 @@ function App() {
           } 
         />
         <Route 
+          path="/admin/timetable" 
+          element={
+            <AdminProtectedRoute>
+              <TimetableManage />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/timetable/create" 
+          element={
+            <AdminProtectedRoute>
+              <TimetableCreate />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/timetable/view" 
+          element={
+            <AdminProtectedRoute>
+              <TimetableView />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
           path="/admin/:section" 
           element={
             <AdminProtectedRoute>
@@ -413,7 +436,6 @@ function App() {
         />
 
       </Routes>
-
     </BrowserRouter>
   );
 }

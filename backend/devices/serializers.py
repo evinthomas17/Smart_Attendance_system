@@ -59,6 +59,7 @@ class ClassDeviceSerializer(serializers.ModelSerializer):
     division_code = serializers.CharField(source="division.class_code", read_only=True)
     classroom_room_no = serializers.CharField(source="classroom.room_no", read_only=True)
     classroom_id = serializers.IntegerField(source="classroom.id", read_only=True)
+    device_id = serializers.IntegerField(source="classroom.device.device_id", read_only=True)
     device_name = serializers.SerializerMethodField()
     device_service_uuid = serializers.SerializerMethodField()
     device_status = serializers.SerializerMethodField()
@@ -83,6 +84,7 @@ class ClassDeviceSerializer(serializers.ModelSerializer):
             "classroom",
             "classroom_room_no",
             "classroom_id",
+            "device_id",
             "device_name",
             "device_service_uuid",
             "device_status",

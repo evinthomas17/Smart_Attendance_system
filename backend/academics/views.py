@@ -1,16 +1,22 @@
+from django.db import transaction
 from rest_framework.generics import ListAPIView, ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.views import APIView
 
 from adminpanel.permissions import IsAdminRole
 
-from .models import AcademicClass, Course, Department, Semester, Subject
+from .models import AcademicClass, Course, Department, Semester, Subject, Timetable, TimetablePeriod
 from .serializers import (
     AcademicClassSerializer,
     CourseSerializer,
     DepartmentSerializer,
     SemesterSerializer,
     SubjectSerializer,
+    TimetableSerializer,
+    TimetableCreateSerializer,
+    TimetableListSerializer,
+    TimetablePeriodSerializer,
 )
 
 
@@ -82,16 +88,70 @@ class SubjectListCreateAPIView(ListCreateAPIView):
             queryset = queryset.filter(name__icontains=search)
         return queryset
 
+    def _generate_unique_subject_code(self, course_id, semester_id, subject_name, index):
+        course_prefix = "SUB"
+        if course_id:
+            course = Course.objects.filter(id=course_id).only("code").first()
+            if course and course.code:
+                course_prefix = "".join(ch for ch in course.code.upper() if ch.isalpha())[:6] or "SUB"
+
+        semester_number = 0
+        if semester_id:
+            semester = Semester.objects.filter(id=semester_id).only("semester_number").first()
+            if semester:
+                semester_number = semester.semester_number
+
+        name_key = "".join(ch for ch in (subject_name or "SUB") if ch.isalnum())[:4].upper() or "SUB"
+        base_code = f"{course_prefix}{int(course_id or 0):03d}{int(semester_number):02d}{name_key}"
+        candidate = f"{base_code}{index:02d}"
+
+        counter = index + 1
+        while Subject.objects.filter(code=candidate).exists():
+            candidate = f"{base_code}{counter:02d}"
+            counter += 1
+
+        return candidate
+
+    def _prepare_subjects_data(self, subjects_data):
+        if isinstance(subjects_data, list):
+            prepared = []
+            for index, subject in enumerate(subjects_data):
+                payload = dict(subject) if isinstance(subject, dict) else {}
+                if not payload.get("code"):
+                    payload["code"] = self._generate_unique_subject_code(
+                        payload.get("course"),
+                        payload.get("semester"),
+                        payload.get("name", ""),
+                        index,
+                    )
+                prepared.append(payload)
+            return prepared
+
+        payload = dict(subjects_data) if isinstance(subjects_data, dict) else {}
+        if not payload.get("code"):
+            payload["code"] = self._generate_unique_subject_code(
+                payload.get("course"),
+                payload.get("semester"),
+                payload.get("name", ""),
+                0,
+            )
+        return payload
+
     def create(self, request, *args, **kwargs):
         # Support both single subject and bulk creation
         subjects_data = request.data
         if isinstance(subjects_data, list):
-            serializer = self.get_serializer(data=subjects_data, many=True)
+            prepared_data = self._prepare_subjects_data(subjects_data)
+            serializer = self.get_serializer(data=prepared_data, many=True)
         else:
-            serializer = self.get_serializer(data=subjects_data)
-        
+            prepared_data = self._prepare_subjects_data(subjects_data)
+            serializer = self.get_serializer(data=prepared_data)
+
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+
+        with transaction.atomic():
+            self.perform_create(serializer)
+
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
@@ -105,3 +165,109 @@ class SubjectRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
         return Subject.objects.filter(is_active=True).select_related(
             "course__department", "semester"
         )
+
+
+class TimetableListCreateAPIView(ListCreateAPIView):
+    permission_classes = [IsAdminRole]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return TimetableCreateSerializer
+        return TimetableListSerializer
+
+    def get_queryset(self):
+        queryset = Timetable.objects.filter(is_active=True).select_related(
+            "academic_class__course__department", "academic_class__semester"
+        )
+        academic_class_id = self.request.query_params.get("class_id")
+        if academic_class_id:
+            queryset = queryset.filter(academic_class_id=academic_class_id)
+        return queryset
+
+
+class TimetableDetailAPIView(APIView):
+    permission_classes = [IsAdminRole]
+
+    def get(self, request, pk):
+        try:
+            timetable = Timetable.objects.select_related(
+                "academic_class__course__department", "academic_class__semester"
+            ).prefetch_related(
+                "periods__subject", "periods__faculty__user"
+            ).get(pk=pk, is_active=True)
+        except Timetable.DoesNotExist:
+            return Response({"detail": "Timetable not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = TimetableSerializer(timetable)
+        return Response(serializer.data)
+
+    def delete(self, request, pk):
+        try:
+            timetable = Timetable.objects.get(pk=pk, is_active=True)
+        except Timetable.DoesNotExist:
+            return Response({"detail": "Timetable not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        timetable.is_active = False
+        timetable.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AcademicClassSubjectsAPIView(APIView):
+    """Get subjects for a specific academic class (course + semester)."""
+    permission_classes = [IsAdminRole]
+
+    def get(self, request):
+        class_id = request.query_params.get("class_id")
+        if not class_id:
+            return Response({"detail": "class_id parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            academic_class = AcademicClass.objects.select_related("course", "semester").get(
+                id=class_id, is_active=True
+            )
+        except AcademicClass.DoesNotExist:
+            return Response({"detail": "Academic class not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        subjects = Subject.objects.filter(
+            course=academic_class.course,
+            semester=academic_class.semester,
+            is_active=True
+        ).order_by("name")
+
+        serializer = SubjectSerializer(subjects, many=True)
+        return Response(serializer.data)
+
+
+class AcademicClassFacultyAPIView(APIView):
+    """Get faculty assigned to a specific course."""
+    permission_classes = [IsAdminRole]
+
+    def get(self, request):
+        class_id = request.query_params.get("class_id")
+        if not class_id:
+            return Response({"detail": "class_id parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            academic_class = AcademicClass.objects.select_related("course").get(
+                id=class_id, is_active=True
+            )
+        except AcademicClass.DoesNotExist:
+            return Response({"detail": "Academic class not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        from faculty.models import Faculty, FacultyCourse
+        faculty_list = Faculty.objects.filter(
+            is_active=True,
+            course_assignments__course=academic_class.course,
+            course_assignments__is_active=True
+        ).select_related("user").distinct().order_by("full_name")
+
+        data = [
+            {
+                "id": f.id,
+                "employee_id": f.employee_id,
+                "full_name": f.full_name,
+                "email": f.user.email,
+            }
+            for f in faculty_list
+        ]
+        return Response(data)

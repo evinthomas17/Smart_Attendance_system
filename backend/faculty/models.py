@@ -60,3 +60,42 @@ class FacultyCourse(models.Model):
 
     def __str__(self):
         return f"{self.faculty.full_name} - {self.course.name}"
+
+
+class FacultyClassAssignment(models.Model):
+    """Class Teacher assignment model.
+    Links a faculty to a specific academic class (course-semester-division).
+    Represents when a faculty is designated as a class teacher.
+    """
+
+    faculty = models.OneToOneField(
+        Faculty,
+        on_delete=models.CASCADE,
+        related_name="class_teacher_assignment",
+        null=True,
+        blank=True,
+    )
+    academic_class = models.ForeignKey(
+        "academics.AcademicClass",
+        on_delete=models.CASCADE,
+        related_name="class_teachers",
+    )
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["academic_class", "is_active"],
+                condition=models.Q(is_active=True),
+                name="unique_active_class_teacher",
+            ),
+        ]
+        ordering = ["-assigned_at"]
+        verbose_name = "Faculty Class Assignment"
+        verbose_name_plural = "Faculty Class Assignments"
+
+    def __str__(self):
+        if self.faculty:
+            return f"{self.faculty.full_name} - {self.academic_class.class_code}"
+        return f"Class: {self.academic_class.class_code}"

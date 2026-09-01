@@ -158,6 +158,32 @@ class ClassDeviceRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
             "classroom__device",
         )
 
+    def update(self, request, *args, **kwargs):
+        class_device = self.get_object()
+        old_classroom = class_device.classroom
+        device = old_classroom.device  # Device from the old classroom
+
+        # Perform the ClassDevice update
+        response = super().update(request, *args, **kwargs)
+
+        # Sync Classroom.device references
+        class_device.refresh_from_db()
+        new_classroom = class_device.classroom
+
+        with transaction.atomic():
+            # Clear device from old classroom if no other ClassDevices reference it
+            if old_classroom != new_classroom:
+                if not old_classroom.class_devices.exists():
+                    old_classroom.device = None
+                    old_classroom.save(update_fields=["device", "updated_at"])
+
+                # Set device on new classroom
+                if device:
+                    new_classroom.device = device
+                    new_classroom.save(update_fields=["device", "updated_at"])
+
+        return response
+
     def destroy(self, request, *args, **kwargs):
         class_device = self.get_object()
         classroom = class_device.classroom

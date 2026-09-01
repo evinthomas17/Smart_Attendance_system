@@ -174,6 +174,21 @@ function SubjectAdd() {
     return isValid;
   };
 
+  const generateSubjectCode = (index, subjectName) => {
+    const courseKey = (academicInfo.courseName || "SUB")
+      .replace(/[^A-Za-z]/g, "")
+      .slice(0, 6)
+      .toUpperCase() || "SUB";
+    const courseIdPart = String(academicInfo.courseId ?? 0).padStart(3, "0");
+    const semesterPart = String(parseInt(selectedSemester, 10) || 0).padStart(2, "0");
+    const namePart = (subjectName || "SUB")
+      .replace(/[^A-Za-z0-9]/g, "")
+      .slice(0, 4)
+      .toUpperCase() || "SUB";
+
+    return `${courseKey}${courseIdPart}${semesterPart}${namePart}${String(index + 1).padStart(2, "0")}`.slice(0, 30);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -188,9 +203,9 @@ function SubjectAdd() {
     try {
       const subjectsData = subjectFields.map((field, index) => ({
         name: field.name.trim(),
-        code: `${academicInfo.courseName?.substring(0, 3).toUpperCase()}${String(index + 1).padStart(3, '0')}`,
+        code: generateSubjectCode(index, field.name.trim()),
         course: academicInfo.courseId,
-        semester: selectedSemester,
+        semester: parseInt(selectedSemester, 10),
         credits: 3,
       }));
 

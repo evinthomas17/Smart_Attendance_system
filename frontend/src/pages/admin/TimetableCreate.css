@@ -1,0 +1,377 @@
+.alert-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px;
+  background: #fff8e1;
+  border: 1px solid #ffd54f;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.alert-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.alert-content h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.alert-content p {
+  margin: 0 0 16px;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.academic-info-card {
+  margin-bottom: 20px;
+}
+
+.section-description {
+  margin: 0 0 20px;
+  color: #777;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.timetable-config-card,
+.weekly-timetable-card {
+  margin-bottom: 20px;
+}
+
+.timetable-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.day-table-wrapper {
+  border: 1px solid #eee;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.day-heading {
+  margin: 0;
+  padding: 12px 16px;
+  background: #f7f5ff;
+  border-bottom: 1px solid #eee;
+  font-size: 15px;
+  font-weight: 600;
+  color: #4136e5;
+}
+
+.table-scroll-wrapper {
+  overflow-x: auto;
+}
+
+.timetable-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  min-width: 600px;
+}
+
+.timetable-table th,
+.timetable-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.timetable-table thead th {
+  background: #fafafa;
+  font-weight: 600;
+  color: #555;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.timetable-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.timetable-table td {
+  color: #333;
+  vertical-align: middle;
+}
+
+.period-cell {
+  font-weight: 500;
+  color: #444;
+  white-space: nowrap;
+  background: #fafafa;
+}
+
+.timetable-select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  background: #fff;
+  color: #222;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.timetable-select:focus {
+  outline: none;
+  border-color: #4136e5;
+  box-shadow: 0 0 0 3px rgba(65, 54, 229, 0.15);
+}
+
+.timetable-select:disabled {
+  background: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.timetable-select.error {
+  border-color: #e03e3e;
+}
+
+.timetable-select.error:focus {
+  box-shadow: 0 0 0 3px rgba(224, 62, 62, 0.15);
+}
+
+.timetable-time-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  background: #fff;
+  color: #222;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.timetable-time-input:focus {
+  outline: none;
+  border-color: #4136e5;
+  box-shadow: 0 0 0 3px rgba(65, 54, 229, 0.15);
+}
+
+.timetable-time-input:disabled {
+  background: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.timetable-time-input.error {
+  border-color: #e03e3e;
+}
+
+.timetable-time-input.error:focus {
+  box-shadow: 0 0 0 3px rgba(224, 62, 62, 0.15);
+}
+
+.field-error {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #e03e3e;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 0 0;
+  margin-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s, background 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #2c22df, #ff6b1a);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: #f0eeff;
+  color: #4136e5;
+  border: 1px solid #e0deff;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #e0deff;
+}
+
+.btn-outline {
+  background: transparent;
+  color: #4136e5;
+  border: 1px solid #c5c0f0;
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: #f7f5ff;
+}
+
+.btn-danger {
+  background: #fff5f5;
+  color: #e03e3e;
+  border: 1px solid #feb2b2;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #fff0f0;
+  border-color: #fc8181;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #444;
+}
+
+.required {
+  color: #e03e3e;
+  margin-left: 2px;
+}
+
+.filter-input {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  background: #fff;
+  color: #222;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filter-input:focus {
+  outline: none;
+  border-color: #4136e5;
+  box-shadow: 0 0 0 3px rgba(65, 54, 229, 0.15);
+}
+
+.filter-input:disabled {
+  background: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.filter-input.error {
+  border-color: #e03e3e;
+}
+
+.filter-input.error:focus {
+  box-shadow: 0 0 0 3px rgba(224, 62, 62, 0.15);
+}
+
+.subject-empty {
+  text-align: center;
+  color: #999;
+  padding: 40px 20px;
+  font-size: 14px;
+}
+
+.error-message {
+  color: #e03e3e;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.success-message {
+  color: #2f855a;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .timetable-table {
+    font-size: 13px;
+  }
+
+  .timetable-table th,
+  .timetable-table td {
+    padding: 8px 10px;
+  }
+
+  .timetable-select,
+  .timetable-time-input {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .day-heading {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .timetable-container {
+    gap: 16px;
+  }
+}
