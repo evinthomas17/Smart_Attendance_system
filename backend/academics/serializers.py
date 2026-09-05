@@ -171,12 +171,17 @@ class TimetableSerializer(serializers.ModelSerializer):
             "division",
             "academic_year",
             "number_of_periods",
+            "timetable_type",
+            "valid_from",
+            "valid_until",
             "is_active",
+            "is_archived",
+            "archived_at",
             "periods",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at", "is_archived", "archived_at"]
 
 
 class TimetableCreateSerializer(serializers.ModelSerializer):
@@ -190,6 +195,9 @@ class TimetableCreateSerializer(serializers.ModelSerializer):
             "academic_class",
             "academic_year",
             "number_of_periods",
+            "timetable_type",
+            "valid_from",
+            "valid_until",
             "periods",
         ]
         read_only_fields = ["id"]
@@ -198,6 +206,9 @@ class TimetableCreateSerializer(serializers.ModelSerializer):
         periods_data = attrs.get("periods", [])
         number_of_periods = attrs.get("number_of_periods")
         academic_class_id = attrs.get("academic_class")
+        timetable_type = attrs.get("timetable_type", "PERMANENT")
+        valid_from = attrs.get("valid_from")
+        valid_until = attrs.get("valid_until")
 
         if not academic_class_id:
             raise serializers.ValidationError({"academic_class": "Academic class is required."})
@@ -207,8 +218,29 @@ class TimetableCreateSerializer(serializers.ModelSerializer):
         except AcademicClass.DoesNotExist:
             raise serializers.ValidationError({"academic_class": "Invalid academic class."})
 
-        if Timetable.objects.filter(academic_class=academic_class, academic_year=attrs.get("academic_year"), is_active=True).exists():
-            raise serializers.ValidationError({"academic_class": "A timetable already exists for this class and academic year."})
+        # Check for duplicate timetable (exclude current instance during update)
+        academic_year = attrs.get("academic_year")
+        queryset = Timetable.objects.filter(
+            academic_class=academic_class, 
+            academic_year=academic_year, 
+            timetable_type=timetable_type, 
+            is_active=True
+        )
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise serializers.ValidationError({"academic_class": f"A {timetable_type.lower()} timetable already exists for this class and academic year."})
+
+        if timetable_type == "TEMPORARY":
+            if not valid_from:
+                raise serializers.ValidationError({"valid_from": "Valid from date is required for temporary timetables."})
+            if not valid_until:
+                raise serializers.ValidationError({"valid_until": "Valid until date is required for temporary timetables."})
+            if valid_from and valid_until and valid_from >= valid_until:
+                raise serializers.ValidationError({"valid_until": "Valid until must be after valid from date."})
+        else:
+            if valid_from or valid_until:
+                raise serializers.ValidationError({"valid_from": "Permanent timetables should not have validity dates."})
 
         if number_of_periods and number_of_periods < 1:
             raise serializers.ValidationError({"number_of_periods": "Number of periods must be at least 1."})
@@ -286,6 +318,31 @@ class TimetableCreateSerializer(serializers.ModelSerializer):
 
         return timetable
 
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        periods_data = validated_data.pop("periods", None)
+        academic_class_id = validated_data.pop("academic_class", None)
+
+        # Update Timetable fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        # Handle academic_class if provided
+        if academic_class_id is not None:
+            academic_class = AcademicClass.objects.get(id=academic_class_id)
+            instance.academic_class = academic_class
+
+        instance.save()
+
+        # Update periods if provided
+        if periods_data is not None:
+            # Delete existing periods and create new ones
+            instance.periods.all().delete()
+            for period_data in periods_data:
+                TimetablePeriod.objects.create(timetable=instance, **period_data)
+
+        return instance
+
 
 class TimetableListSerializer(serializers.ModelSerializer):
     academic_class_code = serializers.CharField(source="academic_class.class_code", read_only=True)
@@ -309,7 +366,12 @@ class TimetableListSerializer(serializers.ModelSerializer):
             "division",
             "academic_year",
             "number_of_periods",
+            "timetable_type",
+            "valid_from",
+            "valid_until",
             "is_active",
+            "is_archived",
+            "archived_at",
             "periods_count",
             "created_at",
             "updated_at",

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import * as timetableService from "../../services/timetableService";
 import "../../App.css";
-import "./TimetableCreate.css";
+import "./TimetableView.css";
 
 const navigationItems = [
   { label: "Dashboard", icon: "🏠", path: "/admin/dashboard" },
@@ -15,6 +15,12 @@ const navigationItems = [
 ];
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
+const TABS = [
+  { id: "PERMANENT", label: "Permanent", icon: "📋" },
+  { id: "TEMPORARY", label: "Temporary", icon: "⏱️" },
+  { id: "ARCHIVE", label: "Archives", icon: "🗄️" },
+];
 
 function TimetableView() {
   const navigate = useNavigate();
@@ -44,58 +50,78 @@ function TimetableView() {
     classCode: null,
   };
 
-  const [timetable, setTimetable] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("PERMANENT");
+  const [timetables, setTimetables] = useState([]);
+  const [selectedTimetable, setSelectedTimetable] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (academicInfo.classId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLoading(true);
-      setError("");
-
-      timetableService.getTimetables(academicInfo.classId)
-        .then((response) => {
-          const timetables = response.data;
-          if (timetables && timetables.length > 0) {
-            // Fetch the full timetable with periods using the detail endpoint
-            return timetableService.getTimetable(timetables[0].id);
-          } else {
-            setTimetable(null);
-            setLoading(false);
-            return Promise.resolve(null);
-          }
-        })
-        .then((response) => {
-          if (response && response.data) {
-            setTimetable(response.data);
-          }
-        })
-        .catch((err) => {
-          console.error("Failed to load timetable:", err);
-          if (err.response) {
-            if (err.response.status === 401) {
-              setError("Session expired. Please log in again.");
-            } else if (err.response.status === 403) {
-              setError("You do not have permission to view this timetable.");
-            } else if (err.response.status === 404) {
-              setError("Timetable not found.");
-            } else {
-              setError(err.response.data?.message || err.response.data?.detail || "Failed to load timetable.");
-            }
-          } else if (err.request) {
-            setError("Network error. Please check your connection.");
-          } else {
-            setError("An unexpected error occurred.");
-          }
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+      fetchTimetables();
     } else {
+      setTimetables([]);
+      setSelectedTimetable(null);
+    }
+  }, [academicInfo.classId, activeTab]);
+
+  const fetchTimetables = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      let response;
+      if (activeTab === "ARCHIVE") {
+        response = await timetableService.getArchivedTimetables(academicInfo.classId);
+      } else {
+        response = await timetableService.getTimetables(academicInfo.classId, activeTab);
+      }
+      const data = response.data || [];
+      setTimetables(data);
+      if (data.length > 0 && !selectedTimetable) {
+        await fetchTimetableDetail(data[0].id);
+      } else if (data.length === 0) {
+        setSelectedTimetable(null);
+      }
+    } catch (err) {
+      console.error("Failed to load timetables:", err);
+      if (err.response) {
+        if (err.response.status === 401) {
+          setError("Session expired. Please log in again.");
+        } else if (err.response.status === 403) {
+          setError("You do not have permission to view timetables.");
+        } else if (err.response.status === 404) {
+          setError("Timetables not found.");
+        } else {
+          setError(err.response.data?.message || err.response.data?.detail || "Failed to load timetables.");
+        }
+      } else if (err.request) {
+        setError("Network error. Please check your connection.");
+      } else {
+        setError("An unexpected error occurred.");
+      }
+    } finally {
       setLoading(false);
     }
-  }, [academicInfo.classId]);
+  };
+
+  const fetchTimetableDetail = async (timetableId) => {
+    try {
+      const response = await timetableService.getTimetable(timetableId);
+      setSelectedTimetable(response.data);
+    } catch (err) {
+      console.error("Failed to load timetable detail:", err);
+      setError("Failed to load timetable details.");
+    }
+  };
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    setSelectedTimetable(null);
+  };
+
+  const handleTimetableSelect = async (timetable) => {
+    await fetchTimetableDetail(timetable.id);
+  };
 
   const handleGoBack = () => {
     navigate("/admin/timetable", {
@@ -183,32 +209,116 @@ function TimetableView() {
     );
   };
 
-  const renderTimetable = () => {
+  const renderTabList = () => {
+    return (
+      <div className="tab-list" role="tablist" aria-label="Timetable types">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-controls={`panel-${tab.id}`}
+            id={`tab-${tab.id}`}
+            className={`tab-button ${activeTab === tab.id ? "active" : ""}`}
+            onClick={() => handleTabChange(tab.id)}
+          >
+            <span className="tab-icon">{tab.icon}</span>
+            <span className="tab-label">{tab.label}</span>
+            <span className="tab-count">{timetables.filter(t => t.timetable_type === tab.id || (tab.id === "ARCHIVE" && t.is_archived)).length}</span>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  const renderTimetableList = () => {
     if (!academicInfo.departmentId || !academicInfo.courseId || !academicInfo.semesterId || !academicInfo.classId) {
       return null;
     }
 
     if (loading) {
       return (
-        <section className="card weekly-timetable-card">
-          <h2 className="card-title">Weekly Timetable</h2>
-          <div className="subject-empty">Loading timetable...</div>
+        <section className="card timetable-list-card">
+          <div className="loading">Loading timetables...</div>
         </section>
       );
     }
 
-    if (!timetable) {
+    if (timetables.length === 0) {
+      return (
+        <section className="card timetable-list-card">
+          <div className="empty-state">
+            <div className="empty-icon">
+              {activeTab === "PERMANENT" ? "📋" : activeTab === "TEMPORARY" ? "⏱️" : "🗄️"}
+            </div>
+            <h3>No {activeTab.toLowerCase()} timetables found</h3>
+            <p>
+              {activeTab === "PERMANENT"
+                ? "Create a permanent timetable for this class."
+                : activeTab === "TEMPORARY"
+                ? "Create a temporary timetable with validity dates."
+                : "Archived timetables will appear here when temporary timetables expire."}
+            </p>
+          </div>
+        </section>
+      );
+    }
+
+    return (
+      <section className="card timetable-list-card">
+        <div className="timetable-list">
+          {timetables.map((timetable) => (
+            <div
+              key={timetable.id}
+              className={`timetable-item ${selectedTimetable?.id === timetable.id ? "selected" : ""}`}
+              onClick={() => handleTimetableSelect(timetable)}
+            >
+              <div className="timetable-item-header">
+                <div className="timetable-type-badge">{timetable.timetable_type}</div>
+                <div className="timetable-year">{timetable.academic_year}</div>
+              </div>
+              <div className="timetable-item-details">
+                <span>Periods/day: {timetable.number_of_periods}</span>
+                {timetable.timetable_type === "TEMPORARY" && timetable.valid_from && timetable.valid_until && (
+                  <span>Valid: {timetable.valid_from} to {timetable.valid_until}</span>
+                )}
+                {timetable.is_archived && timetable.archived_at && (
+                  <span className="archived-badge">Archived: {new Date(timetable.archived_at).toLocaleDateString()}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  };
+
+  const renderTimetableDetail = () => {
+    if (!academicInfo.departmentId || !academicInfo.courseId || !academicInfo.semesterId || !academicInfo.classId) {
+      return null;
+    }
+
+    if (loading && !selectedTimetable) {
       return (
         <section className="card weekly-timetable-card">
-          <h2 className="card-title">Weekly Timetable</h2>
-          <p className="section-description">
-            No timetable has been created for this class yet.
-          </p>
-          <div className="subject-empty">No timetable available.</div>
+          <div className="loading">Loading timetable...</div>
         </section>
       );
     }
 
+    if (!selectedTimetable) {
+      return (
+        <section className="card weekly-timetable-card">
+          <div className="empty-state">
+            <div className="empty-icon">📋</div>
+            <h3>Select a timetable</h3>
+            <p>Click on a timetable from the list to view its details</p>
+          </div>
+        </section>
+      );
+    }
+
+    const timetable = selectedTimetable;
     const periods = timetable.periods || [];
     const daysData = DAYS.map((day) => ({
       day,
@@ -217,10 +327,20 @@ function TimetableView() {
 
     return (
       <section className="card weekly-timetable-card">
-        <h2 className="card-title">Weekly Timetable</h2>
-        <p className="section-description">
-          Academic Year: {timetable.academic_year} | Periods per day: {timetable.number_of_periods}
-        </p>
+        <div className="timetable-header">
+          <h2 className="card-title">Weekly Timetable</h2>
+          <div className="timetable-meta">
+            <span className={`type-badge ${(timetable.timetable_type || "").toLowerCase()}`}>{timetable.timetable_type || "N/A"}</span>
+            <span>Academic Year: {timetable.academic_year}</span>
+            <span>Periods/day: {timetable.number_of_periods}</span>
+            {timetable.timetable_type === "TEMPORARY" && timetable.valid_from && timetable.valid_until && (
+              <span className="validity-badge">Valid: {timetable.valid_from} to {timetable.valid_until}</span>
+            )}
+            {timetable.is_archived && timetable.archived_at && (
+              <span className="archived-badge">Archived on: {new Date(timetable.archived_at).toLocaleDateString()}</span>
+            )}
+          </div>
+        </div>
 
         <div className="timetable-container">
           {daysData.map((dayData) => (
@@ -334,7 +454,7 @@ function TimetableView() {
           <div className="page-heading">
             <div>
               <h1>View Timetable</h1>
-              <p>View the weekly timetable for the selected class</p>
+              <p>View Permanent, Temporary & Archived timetables for the selected class</p>
             </div>
             <button
               type="button"
@@ -353,7 +473,17 @@ function TimetableView() {
 
           {renderAcademicInfo()}
 
-          {renderTimetable()}
+          {academicInfo.departmentId && academicInfo.courseId && academicInfo.semesterId && academicInfo.classId && (
+            <div className="timetable-view-layout">
+              <aside className="timetable-sidebar">
+                {renderTabList()}
+                {renderTimetableList()}
+              </aside>
+              <div className="timetable-main">
+                {renderTimetableDetail()}
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.utils import timezone
 from rest_framework.generics import ListAPIView, ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -138,7 +139,6 @@ class SubjectListCreateAPIView(ListCreateAPIView):
         return payload
 
     def create(self, request, *args, **kwargs):
-        # Support both single subject and bulk creation
         subjects_data = request.data
         if isinstance(subjects_data, list):
             prepared_data = self._prepare_subjects_data(subjects_data)
@@ -176,12 +176,15 @@ class TimetableListCreateAPIView(ListCreateAPIView):
         return TimetableListSerializer
 
     def get_queryset(self):
-        queryset = Timetable.objects.filter(is_active=True).select_related(
+        queryset = Timetable.objects.filter(is_active=True, is_archived=False).select_related(
             "academic_class__course__department", "academic_class__semester"
         )
         academic_class_id = self.request.query_params.get("class_id")
+        timetable_type = self.request.query_params.get("type")
         if academic_class_id:
             queryset = queryset.filter(academic_class_id=academic_class_id)
+        if timetable_type:
+            queryset = queryset.filter(timetable_type=timetable_type)
         return queryset
 
 
@@ -194,26 +197,128 @@ class TimetableDetailAPIView(APIView):
                 "academic_class__course__department", "academic_class__semester"
             ).prefetch_related(
                 "periods__subject", "periods__faculty__user"
-            ).get(pk=pk, is_active=True)
+            ).get(pk=pk)
         except Timetable.DoesNotExist:
             return Response({"detail": "Timetable not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = TimetableSerializer(timetable)
-        return Response(serializer.data)
+        try:
+            serializer = TimetableSerializer(timetable)
+            return Response(serializer.data)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception("Error serializing timetable %s: %s", pk, e)
+            return Response(
+                {"detail": "Error retrieving timetable data.", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def put(self, request, pk):
+        try:
+            timetable = Timetable.objects.select_related(
+                "academic_class__course__department", "academic_class__semester"
+            ).prefetch_related("periods").get(pk=pk)
+        except Timetable.DoesNotExist:
+            return Response({"detail": "Timetable not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if timetable.is_archived:
+            return Response({"detail": "Cannot update archived timetable."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = TimetableCreateSerializer(timetable, data=request.data, partial=False)
+        if serializer.is_valid():
+            try:
+                with transaction.atomic():
+                    timetable = serializer.save()
+                timetable.refresh_from_db()
+                return Response(TimetableSerializer(timetable).data)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.exception("Error updating timetable %s: %s", pk, e)
+                return Response(
+                    {"detail": "Error updating timetable.", "error": str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk):
+        try:
+            timetable = Timetable.objects.select_related(
+                "academic_class__course__department", "academic_class__semester"
+            ).prefetch_related("periods").get(pk=pk)
+        except Timetable.DoesNotExist:
+            return Response({"detail": "Timetable not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if timetable.is_archived:
+            return Response({"detail": "Cannot update archived timetable."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = TimetableCreateSerializer(timetable, data=request.data, partial=True)
+        if serializer.is_valid():
+            try:
+                with transaction.atomic():
+                    timetable = serializer.save()
+                timetable.refresh_from_db()
+                return Response(TimetableSerializer(timetable).data)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.exception("Error patching timetable %s: %s", pk, e)
+                return Response(
+                    {"detail": "Error updating timetable.", "error": str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
         try:
-            timetable = Timetable.objects.get(pk=pk, is_active=True)
+            timetable = Timetable.objects.get(pk=pk)
         except Timetable.DoesNotExist:
             return Response({"detail": "Timetable not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        timetable.is_active = False
-        timetable.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        if timetable.is_archived:
+            return Response({"detail": "Archived timetables cannot be deleted. Use permanent delete if absolutely necessary."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if timetable.timetable_type == "TEMPORARY" and timetable.valid_until and timetable.valid_until < timezone.now().date():
+            return Response({"detail": "Expired temporary timetable should be archived, not deleted."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            timetable.is_active = False
+            timetable.save()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception("Error deleting timetable %s: %s", pk, e)
+            return Response(
+                {"detail": "Error deleting timetable.", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class TimetableArchiveListAPIView(ListAPIView):
+    permission_classes = [IsAdminRole]
+    serializer_class = TimetableListSerializer
+
+    def get_queryset(self):
+        queryset = Timetable.objects.filter(is_archived=True).select_related(
+            "academic_class__course__department", "academic_class__semester"
+        )
+        academic_class_id = self.request.query_params.get("class_id")
+        timetable_type = self.request.query_params.get("type")
+        date_from = self.request.query_params.get("date_from")
+        date_to = self.request.query_params.get("date_to")
+        if academic_class_id:
+            queryset = queryset.filter(academic_class_id=academic_class_id)
+        if timetable_type:
+            queryset = queryset.filter(timetable_type=timetable_type)
+        if date_from:
+            queryset = queryset.filter(archived_at__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(archived_at__lte=date_to)
+        return queryset
 
 
 class AcademicClassSubjectsAPIView(APIView):
-    """Get subjects for a specific academic class (course + semester)."""
     permission_classes = [IsAdminRole]
 
     def get(self, request):
@@ -239,7 +344,6 @@ class AcademicClassSubjectsAPIView(APIView):
 
 
 class AcademicClassFacultyAPIView(APIView):
-    """Get faculty assigned to a specific course."""
     permission_classes = [IsAdminRole]
 
     def get(self, request):

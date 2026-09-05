@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import * as timetableService from "../../services/timetableService";
 import "../../App.css";
 import "./TimetableCreate.css";
+import "./TimetableView.css";
 
 const navigationItems = [
   { label: "Dashboard", icon: "🏠", path: "/admin/dashboard" },
@@ -16,13 +17,18 @@ const navigationItems = [
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
-function TimetableCreate() {
+const TABS = [
+  { id: "PERMANENT", label: "Permanent", icon: "📋" },
+  { id: "TEMPORARY", label: "Temporary", icon: "⏱️" },
+];
+
+function TimetableUpdate() {
   const navigate = useNavigate();
   const location = useLocation();
 
   const academicInfoFromState = location.state;
 
-  const academicInfo = academicInfoFromState ? {
+  const initialAcademicInfo = academicInfoFromState ? {
     departmentId: academicInfoFromState.departmentId || null,
     departmentName: academicInfoFromState.departmentName || null,
     courseId: academicInfoFromState.courseId || null,
@@ -44,11 +50,6 @@ function TimetableCreate() {
     classCode: null,
   };
 
-  const [subjects, setSubjects] = useState([]);
-  const [faculty, setFaculty] = useState([]);
-  const [loadingSubjects, setLoadingSubjects] = useState(false);
-  const [loadingFaculty, setLoadingFaculty] = useState(false);
-
   const [timetableType, setTimetableType] = useState("PERMANENT");
   const [validFrom, setValidFrom] = useState("");
   const [validUntil, setValidUntil] = useState("");
@@ -58,68 +59,266 @@ function TimetableCreate() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingTimetable, setLoadingTimetable] = useState(true);
+  const [timetableId, setTimetableId] = useState(null);
 
   const [timetableData, setTimetableData] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [faculty, setFaculty] = useState([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const [loadingFaculty, setLoadingFaculty] = useState(false);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (academicInfo.classId) {
-      setLoadingSubjects(true);
-      setLoadingFaculty(true);
-      
-      timetableService.getClassSubjects(academicInfo.classId)
-        .then((response) => {
-          setSubjects(response.data);
-        })
-        .catch((err) => {
-          console.error("Failed to load subjects:", err);
-          setError("Failed to load subjects for the selected class");
-        })
-        .finally(() => {
-          setLoadingSubjects(false);
-        });
+  const [activeTab, setActiveTab] = useState("PERMANENT");
+  const [allTimetables, setAllTimetables] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
 
-      timetableService.getClassFaculty(academicInfo.classId)
-        .then((response) => {
-          setFaculty(response.data);
-        })
-        .catch((err) => {
-          console.error("Failed to load faculty:", err);
-          setError("Failed to load faculty for the selected course");
-        })
-        .finally(() => {
-          setLoadingFaculty(false);
-        });
+  // Locked academic info from the selected timetable (read-only)
+  const [lockedAcademicInfo, setLockedAcademicInfo] = useState(null);
+
+  const [originalTimetable, setOriginalTimetable] = useState(null);
+  const timetableDataRef = useRef([]);
+
+  const fetchAllTimetables = useCallback(async () => {
+    const classId = academicInfoFromState?.classId;
+    if (!classId) return;
+    
+    setLoadingTimetable(true);
+    setError("");
+    try {
+      const response = await timetableService.getTimetables(classId);
+      const timetables = response.data || [];
+      setAllTimetables(timetables);
+    } catch (err) {
+      console.error("Failed to load timetables:", err);
+      if (err.response) {
+        if (err.response.status === 401) {
+          setError("Session expired. Please log in again.");
+        } else if (err.response.status === 403) {
+          setError("You do not have permission to view timetables.");
+        } else {
+          setError(err.response.data?.message || err.response.data?.detail || "Failed to load timetables.");
+        }
+      } else if (err.request) {
+        setError("Network error. Please check your connection.");
+      } else {
+        setError("An unexpected error occurred.");
+      }
+    } finally {
+      setLoadingTimetable(false);
     }
-  }, [academicInfo.classId]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  }, [academicInfoFromState?.classId]);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
+const loadSubjectsAndFaculty = useCallback(async (classId) => {
+    const cid = classId || lockedAcademicInfo?.academic_class_id || academicInfoFromState?.classId;
+    if (!cid) {
+      setSubjects([]);
+      setFaculty([]);
+      return;
+    }
+    
+    setLoadingSubjects(true);
+    setLoadingFaculty(true);
+    try {
+      const [subjectsRes, facultyRes] = await Promise.all([
+        timetableService.getClassSubjects(cid),
+        timetableService.getClassFaculty(cid),
+      ]);
+      setSubjects(subjectsRes.data);
+      setFaculty(facultyRes.data);
+    } catch (err) {
+      console.error("Failed to load subjects/faculty:", err);
+      setSubjects([]);
+      setFaculty([]);
+    } finally {
+      setLoadingSubjects(false);
+      setLoadingFaculty(false);
+    }
+  }, [lockedAcademicInfo?.academic_class_id, academicInfoFromState?.classId]);
+
   useEffect(() => {
-    const count = parseInt(numberOfPeriods, 10);
-    if (numberOfPeriods && !isNaN(count) && count >= 1 && count <= 20) {
-      const newData = [];
+    if (academicInfoFromState?.classId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchAllTimetables();
+    }
+  }, [academicInfoFromState?.classId, fetchAllTimetables]);
+
+  const loadTimetableForEdit = async (timetable) => {
+    setLoadingTimetable(true);
+    setError("");
+    try {
+      // Fetch FULL timetable detail with periods from API
+      const response = await timetableService.getTimetable(timetable.id);
+      const t = response.data;
+      setOriginalTimetable(t);
+      setTimetableId(t.id);
+      setTimetableType(t.timetable_type);
+      setNumberOfPeriods(t.number_of_periods.toString());
+      if (t.valid_from) setValidFrom(t.valid_from);
+      if (t.valid_until) setValidUntil(t.valid_until);
+
+      // Populate locked academic info from the timetable's academic_class data
+      setLockedAcademicInfo({
+        academic_class_id: t.academic_class_id || null,
+        departmentName: t.department_name || null,
+        courseName: t.course_name || null,
+        semesterName: t.semester_name || null,
+        division: t.division || null,
+        academic_class_code: t.academic_class_code || null,
+      });
+
+      await loadSubjectsAndFaculty(t.academic_class_id);
+
+      const periodsData = [];
       DAYS.forEach((day) => {
-        for (let i = 1; i <= count; i++) {
-          newData.push({
+        for (let i = 1; i <= t.number_of_periods; i++) {
+          const period = t.periods?.find(p => p.day === day && p.period_number === i);
+          periodsData.push({
             id: `${day}-${i}`,
             day,
             periodNumber: i,
-            subject: "",
-            faculty: "",
-            startTime: "",
-            endTime: "",
+            subject: period?.subject ? String(period.subject) : "",
+            subjectName: period?.subject_name || "",
+            subjectCode: period?.subject_code || "",
+            faculty: period?.faculty ? String(period.faculty) : "",
+            facultyName: period?.faculty_name || "",
+            facultyEmployeeId: period?.faculty_employee_id || "",
+            startTime: period?.start_time ? period.start_time.slice(0, 5) : "",
+            endTime: period?.end_time ? period.end_time.slice(0, 5) : "",
           });
         }
       });
-      setTimetableData(newData);
-      setPeriodErrors({});
-      setFieldErrors({});
-    } else {
-      setTimetableData([]);
+      // Keep the synchronization effect aligned with the freshly loaded rows.
+      timetableDataRef.current = periodsData;
+      setTimetableData(periodsData);
+      setIsEditing(true);
+    } catch (err) {
+      console.error("Failed to load timetable:", err);
+      if (err.response) {
+        if (err.response.status === 401) {
+          setError("Session expired. Please log in again.");
+        } else if (err.response.status === 403) {
+          setError("You do not have permission to view timetables.");
+        } else {
+          setError(err.response.data?.message || err.response.data?.detail || "Failed to load timetable.");
+        }
+      } else if (err.request) {
+        setError("Network error. Please check your connection.");
+      } else {
+        setError("An unexpected error occurred.");
+      }
+    } finally {
+      setLoadingTimetable(false);
     }
-  }, [numberOfPeriods]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  };
+
+  const handleBackToList = () => {
+    setIsEditing(false);
+    setTimetableId(null);
+    setTimetableData([]);
+    setOriginalTimetable(null);
+    setLockedAcademicInfo(null);
+    setError("");
+    setPeriodErrors({});
+    setFieldErrors({});
+  };
+
+  // Helper function to handle subject change
+  const handleSubjectChange = (periodId, value) => {
+    const subjectMatch = subjects.find(s => String(s.id) === value);
+    const newData = timetableData.map((period) =>
+      period.id === periodId
+        ? {
+            ...period,
+            subject: value,
+            subjectName: subjectMatch?.name || "",
+            subjectCode: subjectMatch?.code || "",
+          }
+        : period
+    );
+    setTimetableData(newData);
+    const newErrors = { ...periodErrors };
+    delete newErrors[`subject_${periodId}`];
+    setPeriodErrors(newErrors);
+  };
+
+  // Helper function to handle faculty change
+  const handleFacultyChange = (periodId, value) => {
+    const facultyMatch = faculty.find(f => String(f.id) === value);
+    const newData = timetableData.map((period) =>
+      period.id === periodId
+        ? {
+            ...period,
+            faculty: value,
+            facultyName: facultyMatch?.full_name || "",
+            facultyEmployeeId: facultyMatch?.employee_id || "",
+          }
+        : period
+    );
+    setTimetableData(newData);
+    const newErrors = { ...periodErrors };
+    delete newErrors[`faculty_${periodId}`];
+    setPeriodErrors(newErrors);
+  };
+
+  // Helper function to handle start time change
+  const handleStartTimeChange = (periodId, value) => {
+    const newData = timetableData.map((period) =>
+      period.id === periodId ? { ...period, startTime: value } : period
+    );
+    setTimetableData(newData);
+    const newErrors = { ...periodErrors };
+    delete newErrors[`time_${periodId}`];
+    setPeriodErrors(newErrors);
+  };
+
+  // Helper function to handle end time change
+  const handleEndTimeChange = (periodId, value) => {
+    const newData = timetableData.map((period) =>
+      period.id === periodId ? { ...period, endTime: value } : period
+    );
+    setTimetableData(newData);
+    const newErrors = { ...periodErrors };
+    delete newErrors[`time_${periodId}`];
+    setPeriodErrors(newErrors);
+  };
+
+  useEffect(() => {
+    // Only auto-generate rows when NOT editing an existing timetable
+    // When editing, the timetable data is loaded from the API and should not be regenerated
+    if (numberOfPeriods && !loadingTimetable && !isEditing) {
+      const count = parseInt(numberOfPeriods, 10);
+      if (!isNaN(count) && count >= 1 && count <= 20) {
+        const existingData = timetableDataRef.current;
+        const newData = [];
+        DAYS.forEach((day) => {
+          for (let i = 1; i <= count; i++) {
+            const existing = existingData.find(p => p.day === day && p.periodNumber === i);
+            newData.push({
+              id: `${day}-${i}`,
+              day,
+              periodNumber: i,
+              subject: existing?.subject || "",
+              subjectName: existing?.subjectName || "",
+              subjectCode: existing?.subjectCode || "",
+              faculty: existing?.faculty || "",
+              facultyName: existing?.facultyName || "",
+              facultyEmployeeId: existing?.facultyEmployeeId || "",
+              startTime: existing?.startTime || "",
+              endTime: existing?.endTime || "",
+            });
+          }
+        });
+        setTimetableData(newData);
+        setPeriodErrors({});
+      } else {
+        setTimetableData([]);
+      }
+    }
+  }, [numberOfPeriods, loadingTimetable, isEditing]);
+
+  useEffect(() => {
+    timetableDataRef.current = timetableData;
+  }, [timetableData]);
 
   const validateNumberOfPeriods = (value) => {
     const count = parseInt(value, 10);
@@ -146,65 +345,26 @@ function TimetableCreate() {
     validateNumberOfPeriods(value);
   };
 
-  const handleSubjectChange = (periodId, value) => {
-    const newData = timetableData.map((period) =>
-      period.id === periodId ? { ...period, subject: value } : period
-    );
-    setTimetableData(newData);
-    const newErrors = { ...periodErrors };
-    delete newErrors[`subject_${periodId}`];
-    setPeriodErrors(newErrors);
-  };
-
-  const handleFacultyChange = (periodId, value) => {
-    const newData = timetableData.map((period) =>
-      period.id === periodId ? { ...period, faculty: value } : period
-    );
-    setTimetableData(newData);
-    const newErrors = { ...periodErrors };
-    delete newErrors[`faculty_${periodId}`];
-    setPeriodErrors(newErrors);
-  };
-
-  const handleStartTimeChange = (periodId, value) => {
-    const newData = timetableData.map((period) =>
-      period.id === periodId ? { ...period, startTime: value } : period
-    );
-    setTimetableData(newData);
-    const newErrors = { ...periodErrors };
-    delete newErrors[`time_${periodId}`];
-    setPeriodErrors(newErrors);
-  };
-
-  const handleEndTimeChange = (periodId, value) => {
-    const newData = timetableData.map((period) =>
-      period.id === periodId ? { ...period, endTime: value } : period
-    );
-    setTimetableData(newData);
-    const newErrors = { ...periodErrors };
-    delete newErrors[`time_${periodId}`];
-    setPeriodErrors(newErrors);
-  };
-
-const validateForm = () => {
+  const validateForm = () => {
     let isValid = true;
     const newFieldErrors = { ...fieldErrors };
     const newPeriodErrors = { ...periodErrors };
 
-    if (!academicInfo.departmentId) {
-      newFieldErrors.department = "Department is missing. Please go back and select a department.";
+    // Validate locked academic info is present
+    if (!initialAcademicInfo?.departmentName) {
+      newFieldErrors.department = "Department is required.";
       isValid = false;
     }
-    if (!academicInfo.courseId) {
-      newFieldErrors.course = "Course is missing. Please go back and select a course.";
+    if (!initialAcademicInfo?.courseName) {
+      newFieldErrors.course = "Course is required.";
       isValid = false;
     }
-    if (!academicInfo.semesterId) {
-      newFieldErrors.semester = "Semester is missing. Please go back and select a semester.";
+    if (!initialAcademicInfo?.semesterName) {
+      newFieldErrors.semester = "Semester is required.";
       isValid = false;
     }
-    if (!academicInfo.classId) {
-      newFieldErrors.classId = "Division is missing. Please go back and select a division.";
+    if (!initialAcademicInfo?.division) {
+      newFieldErrors.classId = "Division is required.";
       isValid = false;
     }
 
@@ -269,10 +429,21 @@ const validateForm = () => {
       return;
     }
 
+    if (!timetableId) {
+      setError("No timetable selected for update.");
+      return;
+    }
+
+    if (!lockedAcademicInfo?.academic_class_id) {
+      setError("Division is required.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const academicYear = new Date().getFullYear() + "-" + String(new Date().getFullYear() + 1).slice(-2);
+      // Use the original timetable's academic_year to preserve it
+      const academicYear = originalTimetable?.academic_year || (new Date().getFullYear() + "-" + String(new Date().getFullYear() + 1).slice(-2));
 
       const periodsData = timetableData.map((period) => ({
         day: period.day,
@@ -284,7 +455,7 @@ const validateForm = () => {
       }));
 
       const payload = {
-        academic_class: academicInfo.classId,
+        academic_class: lockedAcademicInfo?.academic_class_id,
         academic_year: academicYear,
         number_of_periods: parseInt(numberOfPeriods, 10),
         timetable_type: timetableType,
@@ -296,22 +467,13 @@ const validateForm = () => {
         payload.valid_until = validUntil;
       }
 
-      await timetableService.createTimetable(payload);
+      await timetableService.updateTimetable(timetableId, payload);
 
-      setSuccess("Timetable created successfully!");
+      setSuccess("Timetable updated successfully!");
 
       setTimeout(() => {
-        navigate("/admin/timetable", {
-          state: {
-            departmentId: academicInfo.departmentId,
-            departmentName: academicInfo.departmentName,
-            courseId: academicInfo.courseId,
-            courseName: academicInfo.courseName,
-            semesterId: academicInfo.semesterId,
-            semesterName: academicInfo.semesterName,
-          },
-          replace: true,
-        });
+        fetchAllTimetables();
+        handleBackToList();
       }, 1500);
 
     } catch (err) {
@@ -331,17 +493,19 @@ const validateForm = () => {
             setError("Validation failed. Please check your input.");
           } else if (errorData.periods) {
             setError(errorData.periods);
+          } else if (errorData.detail && errorData.detail.includes("archived")) {
+            setError("Cannot update archived timetable.");
           } else {
-            setError(errorData.message || errorData.detail || "Failed to create timetable. Please check your input.");
+            setError(errorData.message || errorData.detail || "Failed to update timetable. Please check your input.");
           }
         } else if (err.response.status === 401) {
           setError("Session expired. Please log in again.");
         } else if (err.response.status === 403) {
-          setError("You do not have permission to create timetables.");
-        } else if (err.response.status === 409) {
-          setError("A timetable already exists for this class and academic year.");
+          setError("You do not have permission to update timetables.");
+        } else if (err.response.status === 404) {
+          setError("Timetable not found.");
         } else {
-          setError(err.response.data?.message || err.response.data?.detail || "Failed to create timetable. Please try again.");
+          setError(err.response.data?.message || err.response.data?.detail || "Failed to update timetable. Please try again.");
         }
       } else if (err.request) {
         setError("Network error. Please check your connection.");
@@ -353,37 +517,70 @@ const validateForm = () => {
     }
   };
 
-  const handleClear = () => {
-    setNumberOfPeriods("");
-    setTimetableData([]);
-    setFieldErrors({});
-    setPeriodErrors({});
+  const handleDelete = async () => {
+    if (!timetableId) return;
+
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this timetable? This action cannot be undone."
+    );
+    if (!confirmDelete) return;
+
+    setLoading(true);
     setError("");
-    setSuccess("");
+
+    try {
+      await timetableService.deleteTimetable(timetableId);
+      setSuccess("Timetable deleted successfully!");
+      fetchAllTimetables();
+      handleBackToList();
+    } catch (err) {
+      if (err.response) {
+        if (err.response.status === 400) {
+          setError(err.response.data?.detail || err.response.data?.message || "Cannot delete this timetable.");
+        } else if (err.response.status === 401) {
+          setError("Session expired. Please log in again.");
+        } else if (err.response.status === 403) {
+          setError("You do not have permission to delete timetables.");
+        } else if (err.response.status === 404) {
+          setError("Timetable not found.");
+        } else {
+          setError(err.response.data?.message || err.response.data?.detail || "Failed to delete timetable.");
+        }
+      } else if (err.request) {
+        setError("Network error. Please check your connection.");
+      } else {
+        setError("An unexpected error occurred.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoBack = () => {
     navigate("/admin/timetable", {
       state: {
-        departmentId: academicInfo.departmentId,
-        departmentName: academicInfo.departmentName,
-        courseId: academicInfo.courseId,
-        courseName: academicInfo.courseName,
-        semesterId: academicInfo.semesterId,
-        semesterName: academicInfo.semesterName,
+        departmentId: initialAcademicInfo.departmentId,
+        departmentName: initialAcademicInfo.departmentName,
+        courseId: initialAcademicInfo.courseId,
+        courseName: initialAcademicInfo.courseName,
+        semesterId: initialAcademicInfo.semesterId,
+        semesterName: initialAcademicInfo.semesterName,
       },
       replace: true,
     });
   };
 
   const renderAcademicInfo = () => {
-    if (!academicInfo.departmentId || !academicInfo.courseId || !academicInfo.semesterId || !academicInfo.classId) {
+    // Use academic info from the Manage page state (initialAcademicInfo)
+    const academicInfo = initialAcademicInfo;
+
+    if (!academicInfo.departmentName || !academicInfo.courseName || !academicInfo.semesterName || !academicInfo.division) {
       return (
         <div className="card alert-card">
           <div className="alert-icon">⚠️</div>
           <div className="alert-content">
             <h3>Academic Information Missing</h3>
-            <p>Please select Department, Course, Semester, and Division from the Manage Timetable page before creating a timetable.</p>
+            <p>Please select Department, Course, Semester, and Division from the Manage Timetable page before updating a timetable.</p>
             <button type="button" className="btn btn-secondary" onClick={handleGoBack}>
               ← Go Back
             </button>
@@ -396,60 +593,129 @@ const validateForm = () => {
       <section className="card academic-info-card">
         <h2 className="card-title">Academic Information</h2>
         <p className="section-description">
-          The following academic details were selected from Timetable Management and are not manually editable.
+          Academic details for this timetable. These fields are locked and cannot be edited.
         </p>
         <div className="form-row">
           <div className="form-group">
-            <label htmlFor="academic-department">Department</label>
-            <input
-              id="academic-department"
-              type="text"
-              value={academicInfo.departmentName || ""}
-              readOnly
-              className="filter-input"
-              tabIndex={-1}
-            />
+            <label>Department <span className="required">*</span></label>
+            <span className="filter-input" readOnly>{academicInfo.departmentName || ""}</span>
           </div>
           <div className="form-group">
-            <label htmlFor="academic-course">Course</label>
-            <input
-              id="academic-course"
-              type="text"
-              value={academicInfo.courseName || ""}
-              readOnly
-              className="filter-input"
-              tabIndex={-1}
-            />
+            <label>Course <span className="required">*</span></label>
+            <span className="filter-input" readOnly>{academicInfo.courseName || ""}</span>
           </div>
           <div className="form-group">
-            <label htmlFor="academic-semester">Semester</label>
-            <input
-              id="academic-semester"
-              type="text"
-              value={academicInfo.semesterName || ""}
-              readOnly
-              className="filter-input"
-              tabIndex={-1}
-            />
+            <label>Semester <span className="required">*</span></label>
+            <span className="filter-input" readOnly>{academicInfo.semesterName || ""}</span>
           </div>
           <div className="form-group">
-            <label htmlFor="academic-division">Division</label>
-            <input
-              id="academic-division"
-              type="text"
-              value={academicInfo.division || ""}
-              readOnly
-              className="filter-input"
-              tabIndex={-1}
-            />
+            <label>Division <span className="required">*</span></label>
+            <span className="filter-input" readOnly>{academicInfo.division || ""}</span>
           </div>
         </div>
       </section>
     );
   };
 
+  const renderTabList = () => {
+    if (!initialAcademicInfo.departmentId || !initialAcademicInfo.courseId || !initialAcademicInfo.semesterId || !initialAcademicInfo.classId) {
+      return null;
+    }
+
+    return (
+      <div className="tab-list" role="tablist" aria-label="Timetable types">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-controls={`panel-${tab.id}`}
+            id={`tab-${tab.id}`}
+            className={`tab-button ${activeTab === tab.id ? "active" : ""}`}
+            onClick={() => {
+              setActiveTab(tab.id);
+              handleBackToList();
+            }}
+            disabled={isEditing}
+          >
+            <span className="tab-icon">{tab.icon}</span>
+            <span className="tab-label">{tab.label}</span>
+            <span className="tab-count">
+              {allTimetables.filter(t => t.timetable_type === tab.id).length}
+            </span>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  const renderTimetableList = () => {
+    if (!initialAcademicInfo.departmentId || !initialAcademicInfo.courseId || !initialAcademicInfo.semesterId || !initialAcademicInfo.classId) {
+      return null;
+    }
+
+    if (loadingTimetable && !isEditing) {
+      return (
+        <section className="card timetable-list-card">
+          <div className="loading">Loading timetables...</div>
+        </section>
+      );
+    }
+
+    const filteredTimetables = allTimetables.filter(t => t.timetable_type === activeTab);
+
+    if (filteredTimetables.length === 0 && !isEditing) {
+      return (
+        <section className="card timetable-list-card">
+          <div className="empty-state">
+            <div className="empty-icon">{activeTab === "PERMANENT" ? "📋" : "⏱️"}</div>
+            <h3>No {activeTab.toLowerCase()} timetables found</h3>
+            <p>
+              {activeTab === "PERMANENT"
+                ? "Create a permanent timetable for this class."
+                : "Create a temporary timetable with validity dates."}
+            </p>
+          </div>
+        </section>
+      );
+    }
+
+    if (!isEditing) {
+      return (
+        <section className="card timetable-list-card">
+          <div className="timetable-list">
+            {filteredTimetables.map((timetable) => (
+              <div
+                key={timetable.id}
+                className="timetable-item"
+                onClick={() => loadTimetableForEdit(timetable)}
+              >
+                <div className="timetable-item-header">
+                  <div className="timetable-type-badge">{timetable.timetable_type}</div>
+                  <div className="timetable-year">{timetable.academic_year}</div>
+                </div>
+                <div className="timetable-item-details">
+                  <span>Periods/day: {timetable.number_of_periods}</span>
+                  {timetable.timetable_type === "TEMPORARY" && timetable.valid_from && timetable.valid_until && (
+                    <span>Valid: {timetable.valid_from} to {timetable.valid_until}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    return null;
+  };
+
   const renderTimetableConfig = () => {
-    if (!academicInfo.departmentId || !academicInfo.courseId || !academicInfo.semesterId || !academicInfo.classId) {
+    if (!initialAcademicInfo.departmentId || !initialAcademicInfo.courseId || !initialAcademicInfo.semesterId || !initialAcademicInfo.classId) {
+      return null;
+    }
+
+    if (!isEditing) {
       return null;
     }
 
@@ -457,7 +723,7 @@ const validateForm = () => {
       <section className="card timetable-config-card">
         <h2 className="card-title">Timetable Configuration</h2>
         <p className="section-description">
-          Select the timetable type and configure the number of periods per day.
+          Update the timetable type and configure the number of periods per day.
         </p>
 
         <div className="form-row">
@@ -545,8 +811,8 @@ const validateForm = () => {
     );
   };
 
-  const renderWeeklyTimetable = () => {
-    if (!academicInfo.departmentId || !academicInfo.courseId || !academicInfo.semesterId || !academicInfo.classId) {
+const renderWeeklyTimetable = () => {
+    if (!initialAcademicInfo.departmentId || !initialAcademicInfo.courseId || !initialAcademicInfo.semesterId || !initialAcademicInfo.classId) {
       return null;
     }
 
@@ -573,7 +839,7 @@ const validateForm = () => {
         <p className="section-description">
           Configure subjects, faculty, and timings for each period. Use the dropdowns to select from available options.
         </p>
-        
+
         {periodErrors.general && (
           <div className="error-message" style={{ marginBottom: "16px" }}>
             {periodErrors.general}
@@ -613,7 +879,7 @@ const validateForm = () => {
                               <option value="" disabled>No subjects available for this class</option>
                             ) : (
                               subjects.map((subject) => (
-                                <option key={subject.id} value={subject.id}>
+                                <option key={subject.id} value={String(subject.id)}>
                                   {subject.name} ({subject.code})
                                 </option>
                               ))
@@ -637,7 +903,7 @@ const validateForm = () => {
                               <option value="" disabled>No faculty assigned to this course</option>
                             ) : (
                               faculty.map((f) => (
-                                <option key={f.id} value={f.id}>
+                                <option key={f.id} value={String(f.id)}>
                                   {f.full_name} ({f.employee_id})
                                 </option>
                               ))
@@ -744,8 +1010,8 @@ const validateForm = () => {
         <main className="content">
           <div className="page-heading">
             <div>
-              <h1>Create Timetable</h1>
-              <p>Create a weekly timetable for the selected class</p>
+              <h1>Update Timetable</h1>
+              <p>Select a timetable to update or delete</p>
             </div>
             <button
               type="button"
@@ -771,19 +1037,44 @@ const validateForm = () => {
 
           {renderAcademicInfo()}
 
-          {renderTimetableConfig()}
+          {initialAcademicInfo.departmentId && initialAcademicInfo.courseId && initialAcademicInfo.semesterId && initialAcademicInfo.classId && (
+            <>
+              {!isEditing && (
+                <div className="timetable-view-layout">
+                  <aside className="timetable-sidebar">
+                    {renderTabList()}
+                    {renderTimetableList()}
+                  </aside>
+                  <div className="timetable-main">
+                    <section className="card" style={{ padding: "40px", textAlign: "center" }}>
+                      <div className="empty-icon" style={{ fontSize: "48px", marginBottom: "16px" }}>📋</div>
+                      <h3>Select a Timetable</h3>
+                      <p style={{ color: "#777" }}>Click on a timetable from the list to edit or delete it</p>
+                    </section>
+                  </div>
+                </div>
+              )}
 
-          {renderWeeklyTimetable()}
-
-          {academicInfo.departmentId && academicInfo.courseId && academicInfo.semesterId && academicInfo.classId && timetableData.length > 0 && (
-            <div className="form-actions">
-              <button type="button" className="btn btn-secondary" onClick={handleClear} disabled={loading}>
-                Clear
-              </button>
-              <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={loading}>
-                {loading ? "Saving..." : "Save Timetable"}
-              </button>
-            </div>
+              {isEditing && (
+                <>
+                  {renderTimetableConfig()}
+                  {renderWeeklyTimetable()}
+                  {timetableData.length > 0 && (
+                    <div className="form-actions">
+                      <button type="button" className="btn btn-secondary" onClick={handleBackToList} disabled={loading}>
+                        ← Back to List
+                      </button>
+                      <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={loading}>
+                        Delete
+                      </button>
+                      <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={loading}>
+                        {loading ? "Saving..." : "Update Timetable"}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
           )}
         </main>
       </div>
@@ -791,4 +1082,4 @@ const validateForm = () => {
   );
 }
 
-export default TimetableCreate;
+export default TimetableUpdate;

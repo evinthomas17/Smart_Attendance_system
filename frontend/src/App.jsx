@@ -24,6 +24,7 @@ import DeviceEdit from "./pages/admin/DeviceEdit";
 import TimetableManage from "./pages/admin/TimetableManage";
 import TimetableCreate from "./pages/admin/TimetableCreate";
 import TimetableView from "./pages/admin/TimetableView";
+import TimetableUpdate from "./pages/admin/TimetableUpdate";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import FacultyDashboard from "./pages/faculty/FacultyDashboard";
 
@@ -44,7 +45,7 @@ function AdminProtectedRoute({ children }) {
         return;
       }
 
-      // Verify token with backend using existing dashboard endpoint
+      // Verify token with backend - let api.js interceptor handle 401/refresh
       try {
         const response = await api.get("/adminpanel/dashboard/");
         if (response.status === 200) {
@@ -53,29 +54,14 @@ function AdminProtectedRoute({ children }) {
           throw new Error("Token verification failed");
         }
       } catch {
-        // Try to refresh token
-        const refreshToken = localStorage.getItem("refresh");
-        if (refreshToken) {
-          try {
-            const refreshResponse = await api.post("/accounts/token/refresh/", {
-              refresh: refreshToken,
-            });
-            localStorage.setItem("access", refreshResponse.data.access);
-            setIsAuthenticated(true);
-          } catch {
-            localStorage.removeItem("access");
-            localStorage.removeItem("refresh");
-            localStorage.removeItem("email");
-            localStorage.removeItem("role");
-            navigate("/login", { replace: true });
-          }
-        } else {
-          localStorage.removeItem("access");
-          localStorage.removeItem("refresh");
-          localStorage.removeItem("email");
-          localStorage.removeItem("role");
-          navigate("/login", { replace: true });
-        }
+        // If api.js interceptor already tried refresh and it failed,
+        // the interceptor would have redirected to login.
+        // This catch handles edge cases or if interceptor didn't catch it.
+        localStorage.removeItem("access");
+        localStorage.removeItem("refresh");
+        localStorage.removeItem("email");
+        localStorage.removeItem("role");
+        navigate("/login", { replace: true });
       } finally {
         setIsLoading(false);
       }
@@ -127,28 +113,11 @@ function StudentProtectedRoute({ children }) {
         await api.get("/adminpanel/dashboard/");
         setIsAuthenticated(true);
       } catch {
-        const refreshToken = localStorage.getItem("refresh");
-        if (refreshToken) {
-          try {
-            const response = await api.post("/accounts/token/refresh/", {
-              refresh: refreshToken,
-            });
-            localStorage.setItem("access", response.data.access);
-            setIsAuthenticated(true);
-          } catch {
-            localStorage.removeItem("access");
-            localStorage.removeItem("refresh");
-            localStorage.removeItem("email");
-            localStorage.removeItem("role");
-            navigate("/login", { replace: true });
-          }
-        } else {
-          localStorage.removeItem("access");
-          localStorage.removeItem("refresh");
-          localStorage.removeItem("email");
-          localStorage.removeItem("role");
-          navigate("/login", { replace: true });
-        }
+        localStorage.removeItem("access");
+        localStorage.removeItem("refresh");
+        localStorage.removeItem("email");
+        localStorage.removeItem("role");
+        navigate("/login", { replace: true });
       } finally {
         setIsLoading(false);
       }
@@ -196,28 +165,11 @@ function FacultyProtectedRoute({ children }) {
         await api.get("/adminpanel/dashboard/");
         setIsAuthenticated(true);
       } catch {
-        const refreshToken = localStorage.getItem("refresh");
-        if (refreshToken) {
-          try {
-            const response = await api.post("/accounts/token/refresh/", {
-              refresh: refreshToken,
-            });
-            localStorage.setItem("access", response.data.access);
-            setIsAuthenticated(true);
-          } catch {
-            localStorage.removeItem("access");
-            localStorage.removeItem("refresh");
-            localStorage.removeItem("email");
-            localStorage.removeItem("role");
-            navigate("/login", { replace: true });
-          }
-        } else {
-          localStorage.removeItem("access");
-          localStorage.removeItem("refresh");
-          localStorage.removeItem("email");
-          localStorage.removeItem("role");
-          navigate("/login", { replace: true });
-        }
+        localStorage.removeItem("access");
+        localStorage.removeItem("refresh");
+        localStorage.removeItem("email");
+        localStorage.removeItem("role");
+        navigate("/login", { replace: true });
       } finally {
         setIsLoading(false);
       }
@@ -403,6 +355,14 @@ function App() {
           element={
             <AdminProtectedRoute>
               <TimetableView />
+            </AdminProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/timetable/update" 
+          element={
+            <AdminProtectedRoute>
+              <TimetableUpdate />
             </AdminProtectedRoute>
           } 
         />

@@ -149,7 +149,7 @@ function TimetableManage() {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleViewTimetable() {
+  function navigateToTimetable(path, extraState = {}) {
     if (!filters.department || !filters.course || !filters.semester || !filters.classId) {
       setError("Please select Department, Course, Semester, and Division");
       return;
@@ -159,7 +159,7 @@ function TimetableManage() {
     const selectedSemester = semesters.find(s => s.id === Number(filters.semester));
     const selectedClass = classes.find(c => c.id === Number(filters.classId));
     
-    navigate("/admin/timetable/view", {
+    navigate(path, {
       state: {
         departmentId: selectedDepartment?.id || "",
         departmentName: selectedDepartment?.name || "",
@@ -170,61 +170,22 @@ function TimetableManage() {
         classId: selectedClass?.id || "",
         division: selectedClass?.division || "",
         classCode: selectedClass?.class_code || "",
+        ...extraState,
       },
       replace: true,
     });
   }
 
   function handleCreateTimetable() {
-    if (!filters.department || !filters.course || !filters.semester || !filters.classId) {
-      setError("Please select Department, Course, Semester, and Division");
-      return;
-    }
-    const selectedDepartment = departments.find(d => d.id === Number(filters.department));
-    const selectedCourse = courses.find(c => c.id === Number(filters.course));
-    const selectedSemester = semesters.find(s => s.id === Number(filters.semester));
-    const selectedClass = classes.find(c => c.id === Number(filters.classId));
-    
-    navigate("/admin/timetable/create", {
-      state: {
-        departmentId: selectedDepartment?.id || "",
-        departmentName: selectedDepartment?.name || "",
-        courseId: selectedCourse?.id || "",
-        courseName: selectedCourse?.name || "",
-        semesterId: selectedSemester?.id || "",
-        semesterName: selectedSemester?.name || "",
-        classId: selectedClass?.id || "",
-        division: selectedClass?.division || "",
-        classCode: selectedClass?.class_code || "",
-      },
-      replace: true,
-    });
+    navigateToTimetable("/admin/timetable/create");
+  }
+
+  function handleViewTimetable() {
+    navigateToTimetable("/admin/timetable/view");
   }
 
   function handleUpdateTimetable() {
-    if (!filters.department || !filters.course || !filters.semester || !filters.classId) {
-      setError("Please select Department, Course, Semester, and Division");
-      return;
-    }
-    const selectedDepartment = departments.find(d => d.id === Number(filters.department));
-    const selectedCourse = courses.find(c => c.id === Number(filters.course));
-    const selectedSemester = semesters.find(s => s.id === Number(filters.semester));
-    const selectedClass = classes.find(c => c.id === Number(filters.classId));
-    
-    navigate("/admin/timetable/update", {
-      state: {
-        departmentId: selectedDepartment?.id || "",
-        departmentName: selectedDepartment?.name || "",
-        courseId: selectedCourse?.id || "",
-        courseName: selectedCourse?.name || "",
-        semesterId: selectedSemester?.id || "",
-        semesterName: selectedSemester?.name || "",
-        classId: selectedClass?.id || "",
-        division: selectedClass?.division || "",
-        classCode: selectedClass?.class_code || "",
-      },
-      replace: true,
-    });
+    navigateToTimetable("/admin/timetable/update");
   }
 
   return (
@@ -394,7 +355,7 @@ function TimetableManage() {
                   </div>
                   <div>
                     <h3 style={{ margin: "0 0 8px", fontSize: "18px", fontWeight: 600 }}>Create Timetable</h3>
-                    <p style={{ margin: 0, color: "#666", fontSize: "14px" }}>Create a new timetable for the selected academic combination</p>
+                    <p style={{ margin: 0, color: "#666", fontSize: "14px" }}>Create Permanent or Temporary timetable</p>
                   </div>
                 </button>
                 
@@ -409,11 +370,9 @@ function TimetableManage() {
                   </div>
                   <div>
                     <h3 style={{ margin: "0 0 8px", fontSize: "18px", fontWeight: 600 }}>View Timetable</h3>
-                    <p style={{ margin: 0, color: "#666", fontSize: "14px" }}>View the timetable for the selected class</p>
+                    <p style={{ margin: 0, color: "#666", fontSize: "14px" }}>View Permanent, Temporary & Archived timetables</p>
                   </div>
                 </button>
-
-                
 
                 <button
                   type="button"
@@ -426,7 +385,7 @@ function TimetableManage() {
                   </div>
                   <div>
                     <h3 style={{ margin: "0 0 8px", fontSize: "18px", fontWeight: 600 }}>Update Timetable</h3>
-                    <p style={{ margin: 0, color: "#666", fontSize: "14px" }}>Modify an existing timetable for the selected class</p>
+                    <p style={{ margin: 0, color: "#666", fontSize: "14px" }}>Modify or delete existing timetables</p>
                   </div>
                 </button>
               </div>

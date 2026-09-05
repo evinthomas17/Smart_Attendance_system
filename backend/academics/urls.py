@@ -11,6 +11,7 @@ from .views import (
     SubjectRetrieveUpdateDestroyAPIView,
     TimetableListCreateAPIView,
     TimetableDetailAPIView,
+    TimetableArchiveListAPIView,
 )
 
 urlpatterns = [
@@ -22,6 +23,7 @@ urlpatterns = [
     path("subjects/<int:id>/", SubjectRetrieveUpdateDestroyAPIView.as_view(), name="subject-detail"),
     path("timetables/", TimetableListCreateAPIView.as_view(), name="timetable-list-create"),
     path("timetables/<int:pk>/", TimetableDetailAPIView.as_view(), name="timetable-detail"),
+    path("timetables/archive/", TimetableArchiveListAPIView.as_view(), name="timetable-archive-list"),
     path("class-subjects/", AcademicClassSubjectsAPIView.as_view(), name="class-subjects"),
     path("class-faculty/", AcademicClassFacultyAPIView.as_view(), name="class-faculty"),
 ]

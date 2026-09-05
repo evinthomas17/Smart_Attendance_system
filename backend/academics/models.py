@@ -152,6 +152,11 @@ class Subject(models.Model):
 class Timetable(models.Model):
     """Represents a weekly timetable for an academic class."""
 
+    TIMETABLE_TYPE_CHOICES = [
+        ("PERMANENT", "Permanent"),
+        ("TEMPORARY", "Temporary"),
+    ]
+
     academic_class = models.ForeignKey(
         AcademicClass,
         on_delete=models.PROTECT,
@@ -159,23 +164,45 @@ class Timetable(models.Model):
     )
     academic_year = models.CharField(max_length=20)
     number_of_periods = models.PositiveSmallIntegerField()
+    timetable_type = models.CharField(
+        max_length=20,
+        choices=TIMETABLE_TYPE_CHOICES,
+        default="PERMANENT",
+    )
+    valid_from = models.DateField(null=True, blank=True)
+    valid_until = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["academic_class", "academic_year"],
-                name="unique_class_academic_year_timetable",
+                fields=["academic_class", "academic_year", "timetable_type"],
+                name="unique_class_academic_year_timetable_type",
             ),
         ]
         ordering = ["-created_at"]
         verbose_name = "Timetable"
         verbose_name_plural = "Timetables"
 
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.timetable_type == "TEMPORARY":
+            if not self.valid_from:
+                raise ValidationError({"valid_from": "Valid from date is required for temporary timetables."})
+            if not self.valid_until:
+                raise ValidationError({"valid_until": "Valid until date is required for temporary timetables."})
+            if self.valid_from and self.valid_until and self.valid_from >= self.valid_until:
+                raise ValidationError({"valid_until": "Valid until must be after valid from date."})
+        else:
+            if self.valid_from or self.valid_until:
+                raise ValidationError("Permanent timetables should not have validity dates.")
+
     def __str__(self):
-        return f"{self.academic_class.class_code} - {self.academic_year}"
+        return f"{self.academic_class.class_code} - {self.academic_year} ({self.timetable_type})"
 
 
 class TimetablePeriod(models.Model):
