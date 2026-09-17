@@ -13,6 +13,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token = super().get_token(user)
         token["role"] = user.role
         token["email"] = user.email
+        # Add custom claims to refresh token payload as well for token refresh
+        token.payload["role"] = user.role
+        token.payload["email"] = user.email
+        token.payload["user_id"] = user.id
         return token
 
     def validate(self, attrs):

@@ -4,6 +4,7 @@ from .views import (
     FacultyCourseAssignmentDetailAPIView,
     FacultyCourseAssignmentsAPIView,
     FacultyClassAssignmentAPIView,
+    FacultyDashboardAPIView,
     FacultyDetailAPIView,
     FacultyListCreateAPIView,
 )
@@ -14,4 +15,5 @@ urlpatterns = [
     path("<int:pk>/courses/", FacultyCourseAssignmentsAPIView.as_view(), name="faculty-course-assignments"),
     path("<int:pk>/courses/<int:assignment_id>/", FacultyCourseAssignmentDetailAPIView.as_view(), name="faculty-course-assignment-detail"),
     path("<int:pk>/class-assignment/", FacultyClassAssignmentAPIView.as_view(), name="faculty-class-assignment"),
+    path("dashboard/", FacultyDashboardAPIView.as_view(), name="faculty-dashboard"),
 ]

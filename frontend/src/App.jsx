@@ -110,7 +110,7 @@ function StudentProtectedRoute({ children }) {
       }
 
       try {
-        await api.get("/adminpanel/dashboard/");
+        await api.get("/accounts/me/");
         setIsAuthenticated(true);
       } catch {
         localStorage.removeItem("access");
@@ -162,7 +162,7 @@ function FacultyProtectedRoute({ children }) {
       }
 
       try {
-        await api.get("/adminpanel/dashboard/");
+        await api.get("/accounts/me/");
         setIsAuthenticated(true);
       } catch {
         localStorage.removeItem("access");
@@ -388,6 +388,10 @@ function App() {
         {/* Faculty Protected Routes */}
         <Route 
           path="/faculty-dashboard" 
+          element={<Navigate to="/faculty/dashboard" replace />}
+        />
+        <Route 
+          path="/faculty/dashboard" 
           element={
             <FacultyProtectedRoute>
               <FacultyDashboard />

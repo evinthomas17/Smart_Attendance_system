@@ -35,7 +35,7 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     if (error.response && error.response.status === 401 && !originalRequest._retry) {
-      if (originalRequest.url === "/accounts/token/refresh/") {
+      if (originalRequest.url === "/accounts/token/refresh/" || originalRequest.url === "/api/accounts/token/refresh/") {
         localStorage.removeItem("access");
         localStorage.removeItem("refresh");
         localStorage.removeItem("email");
@@ -77,7 +77,11 @@ api.interceptors.response.use(
         });
 
         const newAccessToken = response.data.access;
+        const newRefreshToken = response.data.refresh;
         localStorage.setItem("access", newAccessToken);
+        if (newRefreshToken) {
+          localStorage.setItem("refresh", newRefreshToken);
+        }
 
         api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import api from "../../services/api";
+import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useLogout } from "../../utils/auth";
+import api from "../../services/api";
 import "../../App.css";
 
 // Each object represents one item in the left navigation menu.
@@ -47,7 +48,10 @@ const quickActions = [
 
 function AdminDashboard() {
   const navigate = useNavigate();
+  const logout = useLogout();
   const [dashboardStats, setDashboardStats] = useState({});
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileRef = useRef(null);
 
   useEffect(() => {
     async function loadDashboardStats() {
@@ -63,23 +67,31 @@ function AdminDashboard() {
     loadDashboardStats();
   }, []);
 
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setIsProfileOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   function handleNotificationClick() {
     window.alert("No new notifications.");
   }
 
-  function handleLogout() {
-    const shouldLogout = window.confirm("Are you sure you want to logout?");
+  function handleProfileClick() {
+    setIsProfileOpen(!isProfileOpen);
+  }
 
-    if (!shouldLogout) {
-      return;
-    }
-
-    // Remove saved login details before returning to the login page.
-    ["access", "refresh", "email", "role"].forEach((key) => {
-      localStorage.removeItem(key);
-    });
-
-    navigate("/login", { replace: true });
+  function handleProfileMenuItemClick(path) {
+    setIsProfileOpen(false);
+    navigate(path);
   }
 
   return (
@@ -103,9 +115,31 @@ function AdminDashboard() {
             🔔
           </button>
 
-          <div className="admin-profile">
+          <div className="admin-profile" ref={profileRef} onClick={handleProfileClick}>
             <div className="profile-circle">A</div>
             <span>Admin</span>
+            <span className="dropdown-arrow">{isProfileOpen ? "▲" : "▼"}</span>
+
+            {isProfileOpen && (
+              <div className="profile-dropdown">
+                <Link 
+                  to="/admin/profile" 
+                  className="dropdown-item"
+                  onClick={() => handleProfileMenuItemClick("/admin/profile")}
+                >
+                  <span className="dropdown-icon">👤</span>
+                  Profile
+                </Link>
+                <button 
+                  type="button" 
+                  className="dropdown-item logout-item"
+                  onClick={logout}
+                >
+                  <span className="dropdown-icon">🚪</span>
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -126,13 +160,6 @@ function AdminDashboard() {
               {item.label}
             </Link>
           ))}
-
-          <button type="button" className="menu-item logout-menu" onClick={handleLogout}>
-            <span className="menu-icon" aria-hidden="true">
-              🚪
-            </span>
-            Logout
-          </button>
         </aside>
 
         <main className="content">

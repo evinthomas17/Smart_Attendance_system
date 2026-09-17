@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import * as deviceService from "../../services/deviceService";
 import * as studentService from "../../services/studentService";
+import { useLogout, useProfileDropdown } from "../../utils/auth";
 import "./DeviceAdd.css";
 
 const navigationItems = [
@@ -18,6 +19,8 @@ const initialForm = { department: "", course: "", semester: "", division: "", cl
 
 function DeviceAdd() {
   const navigate = useNavigate();
+  const logout = useLogout();
+  const { isOpen: isProfileOpen, setIsOpen: setIsProfileOpen, ref: profileRef } = useProfileDropdown();
   const [form, setForm] = useState(initialForm);
   const [departments, setDepartments] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -93,8 +96,8 @@ function DeviceAdd() {
   const isBusy = loading.submitting;
   return <div className="admin-dashboard">
     <div className="circle-top" aria-hidden="true" /><div className="circle-bottom" aria-hidden="true" />
-    <header className="header"><div className="brand"><div className="logo">SA</div><div className="brand-name">Smart Attendance System</div></div><div className="admin-area"><button type="button" className="notification" onClick={() => window.alert("No new notifications.")} aria-label="Show notifications">🔔</button><div className="admin-profile"><div className="profile-circle">A</div><span>Admin</span></div></div></header>
-    <div className="layout"><aside className="sidebar" aria-label="Admin navigation"><div className="sidebar-title">ADMIN</div>{navigationItems.map((item) => <Link key={item.path} to={item.path} className={`menu-item${item.path === "/admin/devices" ? " active" : ""}`}><span className="menu-icon">{item.icon}</span>{item.label}</Link>)}<button type="button" className="menu-item logout-menu" onClick={() => { if (window.confirm("Are you sure you want to logout?")) { ["access", "refresh", "email", "role"].forEach((key) => localStorage.removeItem(key)); navigate("/login", { replace: true }); } }}><span className="menu-icon">🚪</span>Logout</button></aside>
+    <header className="header"><div className="brand"><div className="logo">SA</div><div className="brand-name">Smart Attendance System</div></div><div className="admin-area"><button type="button" className="notification" onClick={() => window.alert("No new notifications.")} aria-label="Show notifications">🔔</button><div className="admin-profile" ref={profileRef} onClick={() => setIsProfileOpen(!isProfileOpen)}><div className="profile-circle">A</div><span>Admin</span><span className="dropdown-arrow">{isProfileOpen ? "▲" : "▼"}</span>{isProfileOpen && <div className="profile-dropdown"><Link to="/admin/profile" className="dropdown-item" onClick={() => { setIsProfileOpen(false); navigate("/admin/profile"); }}><span className="dropdown-icon">👤</span>Profile</Link><button type="button" className="dropdown-item logout-item" onClick={logout}><span className="dropdown-icon">🚪</span>Logout</button></div>}</div></div></header>
+    <div className="layout"><aside className="sidebar" aria-label="Admin navigation"><div className="sidebar-title">ADMIN</div>{navigationItems.map((item) => <Link key={item.path} to={item.path} className={`menu-item${item.path === "/admin/devices" ? " active" : ""}`}><span className="menu-icon">{item.icon}</span>{item.label}</Link>)}</aside>
       <main className="content"><div className="page-heading"><div><h1>Add Device</h1><p>Register and assign a new ESP32 device</p></div><button type="button" className="btn btn-secondary" onClick={() => navigate("/admin/devices", { replace: true })} disabled={isBusy}>← Go Back</button></div>
       {error && <div className="card error-message device-message">{error}</div>}
       {success && <div className="card success-message device-message device-success-message">{success}</div>}

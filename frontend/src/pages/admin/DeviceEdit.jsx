@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import * as deviceService from "../../services/deviceService";
 import * as studentService from "../../services/studentService";
+import { useLogout, useProfileDropdown } from "../../utils/auth";
 import "./DeviceEdit.css";
 
 function DeviceEdit() {
   const navigate = useNavigate();
   const location = useLocation();
+  const logout = useLogout();
+  const { isOpen: isProfileOpen, setIsOpen: setIsProfileOpen, ref: profileRef } = useProfileDropdown();
 
   const academicInfoFromState = location.state;
 
@@ -280,9 +283,31 @@ function DeviceEdit() {
             >
               🔔
             </button>
-            <div className="admin-profile">
+            <div className="admin-profile" ref={profileRef} onClick={() => setIsProfileOpen(!isProfileOpen)}>
               <div className="profile-circle">A</div>
               <span>Admin</span>
+              <span className="dropdown-arrow">{isProfileOpen ? "▲" : "▼"}</span>
+
+              {isProfileOpen && (
+                <div className="profile-dropdown">
+                  <Link 
+                    to="/admin/profile" 
+                    className="dropdown-item"
+                    onClick={() => { setIsProfileOpen(false); navigate("/admin/profile"); }}
+                  >
+                    <span className="dropdown-icon">👤</span>
+                    Profile
+                  </Link>
+                  <button 
+                    type="button" 
+                    className="dropdown-item logout-item"
+                    onClick={logout}
+                  >
+                    <span className="dropdown-icon">🚪</span>
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -319,19 +344,6 @@ function DeviceEdit() {
                 Manage Timetable
               </a>
             </nav>
-            <button
-              type="button"
-              className="menu-item logout-menu"
-              onClick={() => {
-                if (window.confirm("Are you sure you want to logout?")) {
-                  ["access", "refresh", "email", "role"].forEach((key) => localStorage.removeItem(key));
-                  navigate("/login", { replace: true });
-                }
-              }}
-            >
-              <span className="menu-icon" aria-hidden="true">🚪</span>
-              Logout
-            </button>
           </aside>
           <main className="content">
             <div className="page-heading">
@@ -480,9 +492,31 @@ function DeviceEdit() {
           >
             🔔
           </button>
-          <div className="admin-profile">
+          <div className="admin-profile" ref={profileRef} onClick={() => setIsProfileOpen(!isProfileOpen)}>
             <div className="profile-circle">A</div>
             <span>Admin</span>
+            <span className="dropdown-arrow">{isProfileOpen ? "▲" : "▼"}</span>
+
+            {isProfileOpen && (
+              <div className="profile-dropdown">
+                <Link 
+                  to="/admin/profile" 
+                  className="dropdown-item"
+                  onClick={() => { setIsProfileOpen(false); navigate("/admin/profile"); }}
+                >
+                  <span className="dropdown-icon">👤</span>
+                  Profile
+                </Link>
+                <button 
+                  type="button" 
+                  className="dropdown-item logout-item"
+                  onClick={logout}
+                >
+                  <span className="dropdown-icon">🚪</span>
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -519,19 +553,6 @@ function DeviceEdit() {
               Manage Timetable
             </a>
           </nav>
-          <button
-            type="button"
-            className="menu-item logout-menu"
-            onClick={() => {
-              if (window.confirm("Are you sure you want to logout?")) {
-                ["access", "refresh", "email", "role"].forEach((key) => localStorage.removeItem(key));
-                navigate("/login", { replace: true });
-              }
-            }}
-          >
-            <span className="menu-icon" aria-hidden="true">🚪</span>
-            Logout
-          </button>
         </aside>
         <main className="content">
           <div className="page-heading">

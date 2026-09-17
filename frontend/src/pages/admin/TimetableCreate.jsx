@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import * as timetableService from "../../services/timetableService";
+import { useLogout, useProfileDropdown } from "../../utils/auth";
 import "../../App.css";
 import "./TimetableCreate.css";
 
@@ -19,6 +20,8 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 function TimetableCreate() {
   const navigate = useNavigate();
   const location = useLocation();
+  const logout = useLogout();
+  const { isOpen: isProfileOpen, setIsOpen: setIsProfileOpen, ref: profileRef } = useProfileDropdown();
 
   const academicInfoFromState = location.state;
 
@@ -277,8 +280,8 @@ const validateForm = () => {
       const periodsData = timetableData.map((period) => ({
         day: period.day,
         period_number: period.periodNumber,
-        subject: period.subject,
-        faculty: period.faculty,
+        subject: period.subject ? parseInt(period.subject, 10) : null,
+        faculty: period.faculty ? parseInt(period.faculty, 10) : null,
         start_time: period.startTime,
         end_time: period.endTime,
       }));
@@ -316,23 +319,29 @@ const validateForm = () => {
 
     } catch (err) {
       if (err.response) {
+        console.error("Timetable create error:", err.response.data);
         if (err.response.status === 400) {
           const errorData = err.response.data;
           if (errorData.academic_class) {
-            setError(errorData.academic_class);
+            setError(Array.isArray(errorData.academic_class) ? errorData.academic_class.join(", ") : errorData.academic_class);
           } else if (errorData.number_of_periods) {
-            setFieldErrors((prev) => ({ ...prev, numberOfPeriods: errorData.number_of_periods }));
+            setFieldErrors((prev) => ({ ...prev, numberOfPeriods: Array.isArray(errorData.number_of_periods) ? errorData.number_of_periods.join(", ") : errorData.number_of_periods }));
             setError("Validation failed. Please check your input.");
           } else if (errorData.valid_from) {
-            setFieldErrors((prev) => ({ ...prev, validFrom: errorData.valid_from }));
+            setFieldErrors((prev) => ({ ...prev, validFrom: Array.isArray(errorData.valid_from) ? errorData.valid_from.join(", ") : errorData.valid_from }));
             setError("Validation failed. Please check your input.");
           } else if (errorData.valid_until) {
-            setFieldErrors((prev) => ({ ...prev, validUntil: errorData.valid_until }));
+            setFieldErrors((prev) => ({ ...prev, validUntil: Array.isArray(errorData.valid_until) ? errorData.valid_until.join(", ") : errorData.valid_until }));
             setError("Validation failed. Please check your input.");
           } else if (errorData.periods) {
-            setError(errorData.periods);
+            const periodsError = Array.isArray(errorData.periods) ? errorData.periods.join("; ") : (typeof errorData.periods === 'object' ? JSON.stringify(errorData.periods) : errorData.periods);
+            setError(periodsError);
+          } else if (errorData.non_field_errors) {
+            const nonFieldError = Array.isArray(errorData.non_field_errors) ? errorData.non_field_errors.join("; ") : errorData.non_field_errors;
+            setError(nonFieldError);
           } else {
-            setError(errorData.message || errorData.detail || "Failed to create timetable. Please check your input.");
+            const msg = errorData.message || errorData.detail || JSON.stringify(errorData);
+            setError(Array.isArray(msg) ? msg.join(", ") : (msg || "Failed to create timetable. Please check your input."));
           }
         } else if (err.response.status === 401) {
           setError("Session expired. Please log in again.");
@@ -341,7 +350,8 @@ const validateForm = () => {
         } else if (err.response.status === 409) {
           setError("A timetable already exists for this class and academic year.");
         } else {
-          setError(err.response.data?.message || err.response.data?.detail || "Failed to create timetable. Please try again.");
+          const msg = err.response.data?.message || err.response.data?.detail || JSON.stringify(err.response.data);
+          setError(Array.isArray(msg) ? msg.join(", ") : (msg || "Failed to create timetable. Please try again."));
         }
       } else if (err.request) {
         setError("Network error. Please check your connection.");
@@ -701,9 +711,31 @@ const validateForm = () => {
             🔔
           </button>
 
-          <div className="admin-profile">
+          <div className="admin-profile" ref={profileRef} onClick={() => setIsProfileOpen(!isProfileOpen)}>
             <div className="profile-circle">A</div>
             <span>Admin</span>
+            <span className="dropdown-arrow">{isProfileOpen ? "▲" : "▼"}</span>
+
+            {isProfileOpen && (
+              <div className="profile-dropdown">
+                <Link 
+                  to="/admin/profile" 
+                  className="dropdown-item"
+                  onClick={() => { setIsProfileOpen(false); navigate("/admin/profile"); }}
+                >
+                  <span className="dropdown-icon">👤</span>
+                  Profile
+                </Link>
+                <button 
+                  type="button" 
+                  className="dropdown-item logout-item"
+                  onClick={logout}
+                >
+                  <span className="dropdown-icon">🚪</span>
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -724,21 +756,6 @@ const validateForm = () => {
               {item.label}
             </a>
           ))}
-
-          <button type="button" className="menu-item logout-menu" onClick={() => {
-            const shouldLogout = window.confirm("Are you sure you want to logout?");
-            if (shouldLogout) {
-              ["access", "refresh", "email", "role"].forEach((key) => {
-                localStorage.removeItem(key);
-              });
-              navigate("/login", { replace: true });
-            }
-          }}>
-            <span className="menu-icon" aria-hidden="true">
-              🚪
-            </span>
-            Logout
-          </button>
         </aside>
 
         <main className="content">

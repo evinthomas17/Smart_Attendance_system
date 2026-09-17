@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import * as facultyService from "../../services/facultyService";
+import { useLogout, useProfileDropdown } from "../../utils/auth";
 import "./FacultyRegistration.css";
 
 const PHONE_REGEX = /^\d{10}$/;
@@ -9,6 +10,8 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function FacultyUpdate() {
   const navigate = useNavigate();
   const location = useLocation();
+  const logout = useLogout();
+  const { isOpen: isProfileOpen, setIsOpen: setIsProfileOpen, ref: profileRef } = useProfileDropdown();
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -553,9 +556,31 @@ function FacultyUpdate() {
               🔔
             </button>
 
-            <div className="admin-profile">
+            <div className="admin-profile" ref={profileRef} onClick={() => setIsProfileOpen(!isProfileOpen)}>
               <div className="profile-circle">A</div>
               <span>Admin</span>
+              <span className="dropdown-arrow">{isProfileOpen ? "▲" : "▼"}</span>
+
+              {isProfileOpen && (
+                <div className="profile-dropdown">
+                  <Link 
+                    to="/admin/profile" 
+                    className="dropdown-item"
+                    onClick={() => { setIsProfileOpen(false); navigate("/admin/profile"); }}
+                  >
+                    <span className="dropdown-icon">👤</span>
+                    Profile
+                  </Link>
+                  <button 
+                    type="button" 
+                    className="dropdown-item logout-item"
+                    onClick={logout}
+                  >
+                    <span className="dropdown-icon">🚪</span>
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -594,19 +619,6 @@ function FacultyUpdate() {
                 Manage Timetable
               </a>
             </nav>
-
-            <button type="button" className="menu-item logout-menu" onClick={() => {
-              const shouldLogout = window.confirm("Are you sure you want to logout?");
-              if (shouldLogout) {
-                ["access", "refresh", "email", "role"].forEach((key) => {
-                  localStorage.removeItem(key);
-                });
-                navigate("/login", { replace: true });
-              }
-            }}>
-              <span className="menu-icon" aria-hidden="true">🚪</span>
-              Logout
-            </button>
           </aside>
 
           <main className="content">
@@ -643,9 +655,31 @@ function FacultyUpdate() {
             🔔
           </button>
 
-          <div className="admin-profile">
+          <div className="admin-profile" ref={profileRef} onClick={() => setIsProfileOpen(!isProfileOpen)}>
             <div className="profile-circle">A</div>
             <span>Admin</span>
+            <span className="dropdown-arrow">{isProfileOpen ? "▲" : "▼"}</span>
+
+            {isProfileOpen && (
+              <div className="profile-dropdown">
+                <Link 
+                  to="/admin/profile" 
+                  className="dropdown-item"
+                  onClick={() => { setIsProfileOpen(false); navigate("/admin/profile"); }}
+                >
+                  <span className="dropdown-icon">👤</span>
+                  Profile
+                </Link>
+                <button 
+                  type="button" 
+                  className="dropdown-item logout-item"
+                  onClick={logout}
+                >
+                  <span className="dropdown-icon">🚪</span>
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -684,19 +718,6 @@ function FacultyUpdate() {
               Manage Timetable
             </a>
           </nav>
-
-          <button type="button" className="menu-item logout-menu" onClick={() => {
-            const shouldLogout = window.confirm("Are you sure you want to logout?");
-            if (shouldLogout) {
-              ["access", "refresh", "email", "role"].forEach((key) => {
-                localStorage.removeItem(key);
-              });
-              navigate("/login", { replace: true });
-            }
-          }}>
-            <span className="menu-icon" aria-hidden="true">🚪</span>
-            Logout
-          </button>
         </aside>
 
         <main className="content">

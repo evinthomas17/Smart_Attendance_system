@@ -201,6 +201,7 @@ class TimetableCreateSerializer(serializers.ModelSerializer):
             "periods",
         ]
         read_only_fields = ["id"]
+        validators = []
 
     def validate(self, attrs):
         periods_data = attrs.get("periods", [])
@@ -218,18 +219,23 @@ class TimetableCreateSerializer(serializers.ModelSerializer):
         except AcademicClass.DoesNotExist:
             raise serializers.ValidationError({"academic_class": "Invalid academic class."})
 
-        # Check for duplicate timetable (exclude current instance during update)
+        # Check for existing timetable
         academic_year = attrs.get("academic_year")
-        queryset = Timetable.objects.filter(
+        existing_timetable = Timetable.objects.filter(
             academic_class=academic_class, 
             academic_year=academic_year, 
-            timetable_type=timetable_type, 
-            is_active=True
-        )
-        if self.instance:
-            queryset = queryset.exclude(pk=self.instance.pk)
-        if queryset.exists():
-            raise serializers.ValidationError({"academic_class": f"A {timetable_type.lower()} timetable already exists for this class and academic year."})
+            timetable_type=timetable_type
+        ).first()
+
+        if existing_timetable:
+            # Store existing timetable in context for reuse in create/update
+            self.context['existing_timetable'] = existing_timetable
+            # For validation purposes, treat as update - exclude self from duplicate check
+            self.instance = existing_timetable
+        else:
+            # For validation, we need to ensure we don't have a duplicate in validate()
+            # The duplicate check is now handled by reusing existing timetable
+            pass
 
         if timetable_type == "TEMPORARY":
             if not valid_from:
@@ -307,6 +313,13 @@ class TimetableCreateSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
+        # Check if an existing timetable was found during validation
+        existing_timetable = self.context.get('existing_timetable')
+        
+        if existing_timetable:
+            # Reuse existing timetable - call update logic
+            return self.update(existing_timetable, validated_data)
+        
         periods_data = validated_data.pop("periods")
         academic_class_id = validated_data.pop("academic_class")
         academic_class = AcademicClass.objects.get(id=academic_class_id)
@@ -332,6 +345,8 @@ class TimetableCreateSerializer(serializers.ModelSerializer):
             academic_class = AcademicClass.objects.get(id=academic_class_id)
             instance.academic_class = academic_class
 
+        # Ensure timetable is active when updated via serializer
+        instance.is_active = True
         instance.save()
 
         # Update periods if provided

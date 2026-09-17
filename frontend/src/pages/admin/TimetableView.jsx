@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import * as timetableService from "../../services/timetableService";
+import { useLogout, useProfileDropdown } from "../../utils/auth";
 import "../../App.css";
 import "./TimetableView.css";
 
@@ -25,6 +26,8 @@ const TABS = [
 function TimetableView() {
   const navigate = useNavigate();
   const location = useLocation();
+  const logout = useLogout();
+  const { isOpen: isProfileOpen, setIsOpen: setIsProfileOpen, ref: profileRef } = useProfileDropdown();
 
   const academicInfoFromState = location.state;
 
@@ -56,16 +59,17 @@ function TimetableView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (academicInfo.classId) {
-      fetchTimetables();
-    } else {
-      setTimetables([]);
-      setSelectedTimetable(null);
+  const fetchTimetableDetail = async (timetableId) => {
+    try {
+      const response = await timetableService.getTimetable(timetableId);
+      setSelectedTimetable(response.data);
+    } catch (err) {
+      console.error("Failed to load timetable detail:", err);
+      setError("Failed to load timetable details.");
     }
-  }, [academicInfo.classId, activeTab]);
+  };
 
-  const fetchTimetables = async () => {
+  const fetchTimetables = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -102,17 +106,14 @@ function TimetableView() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [academicInfo.classId, activeTab, selectedTimetable]);
 
-  const fetchTimetableDetail = async (timetableId) => {
-    try {
-      const response = await timetableService.getTimetable(timetableId);
-      setSelectedTimetable(response.data);
-    } catch (err) {
-      console.error("Failed to load timetable detail:", err);
-      setError("Failed to load timetable details.");
+  useEffect(() => {
+    if (academicInfo.classId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchTimetables();
     }
-  };
+  }, [fetchTimetables, academicInfo.classId]);
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
@@ -410,9 +411,31 @@ function TimetableView() {
             🔔
           </button>
 
-          <div className="admin-profile">
+          <div className="admin-profile" ref={profileRef} onClick={() => setIsProfileOpen(!isProfileOpen)}>
             <div className="profile-circle">A</div>
             <span>Admin</span>
+            <span className="dropdown-arrow">{isProfileOpen ? "▲" : "▼"}</span>
+
+            {isProfileOpen && (
+              <div className="profile-dropdown">
+                <Link 
+                  to="/admin/profile" 
+                  className="dropdown-item"
+                  onClick={() => { setIsProfileOpen(false); navigate("/admin/profile"); }}
+                >
+                  <span className="dropdown-icon">👤</span>
+                  Profile
+                </Link>
+                <button 
+                  type="button" 
+                  className="dropdown-item logout-item"
+                  onClick={logout}
+                >
+                  <span className="dropdown-icon">🚪</span>
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -433,21 +456,6 @@ function TimetableView() {
               {item.label}
             </a>
           ))}
-
-          <button type="button" className="menu-item logout-menu" onClick={() => {
-            const shouldLogout = window.confirm("Are you sure you want to logout?");
-            if (shouldLogout) {
-              ["access", "refresh", "email", "role"].forEach((key) => {
-                localStorage.removeItem(key);
-              });
-              navigate("/login", { replace: true });
-            }
-          }}>
-            <span className="menu-icon" aria-hidden="true">
-              🚪
-            </span>
-            Logout
-          </button>
         </aside>
 
         <main className="content">
